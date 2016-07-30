@@ -85,7 +85,7 @@
 
 Name:		nfs-ganesha
 Version:	2.3.2
-Release:	1%{?dev_version:%{dev_version}}%{?dist}
+Release:	2%{?dev_version:%{dev_version}}%{?dist}
 Summary:	NFS-Ganesha is a NFS Server running in user space
 Group:		Applications/System
 License:	LGPLv3+
@@ -595,6 +595,9 @@ killall -SIGHUP dbus-daemon 2>&1 > /dev/null
 %endif
 
 %changelog
+* Sat Jul 30 2016 Niels de Vos <ndevos@redhat.com> 2.3.2-2
+- Rebuilt for the CentOS Storage SIG to enable ppc64le
+
 * Wed Apr 27 2016 Niels de Vos <ndevos@redhat.com> 2.3.2-1
 - Update to version 2.3.2
 - do not package -utils on aarch64
