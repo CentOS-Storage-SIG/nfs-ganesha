@@ -32,7 +32,7 @@
 %bcond_with gpfs
 %global use_fsal_gpfs %{on_off_switch gpfs}
 
-%bcond_without xfs
+%bcond_with xfs
 %global use_fsal_xfs %{on_off_switch xfs}
 
 %bcond_with ceph
@@ -595,6 +595,9 @@ killall -SIGHUP dbus-daemon 2>&1 > /dev/null
 %endif
 
 %changelog
+* Sat Jul 30 2016 Niels de Vos <ndevos@redhat.com> 2.3.2-2
+- Disable FSAL_XFS for CentOS-6 build
+
 * Wed Apr 27 2016 Niels de Vos <ndevos@redhat.com> 2.3.2-1
 - Update to version 2.3.2
 - do not package -utils on aarch64
