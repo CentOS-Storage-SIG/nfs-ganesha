@@ -29,6 +29,9 @@
 %bcond_without nullfs
 %global use_fsal_null %{on_off_switch nullfs}
 
+%bcond_with proxy
+%global use_proxy %{on_off_switch proxy}
+
 %bcond_with gpfs
 %global use_fsal_gpfs %{on_off_switch gpfs}
 
@@ -84,7 +87,7 @@
 %global dev_version %{lua: extraver = string.gsub('', '%-', '.'); print(extraver) }
 
 Name:		nfs-ganesha
-Version:	2.3.2
+Version:	2.3.3
 Release:	1%{?dev_version:%{dev_version}}%{?dist}
 Summary:	NFS-Ganesha is a NFS Server running in user space
 Group:		Applications/System
@@ -92,6 +95,7 @@ License:	LGPLv3+
 Url:		https://github.com/nfs-ganesha/nfs-ganesha/wiki
 
 Source0:	 https://github.com/%{name}/%{name}/archive/V%{version}/%{name}-%{version}%{dev_version}.tar.gz
+Patch9999:	9999-Use-__gf_free-instead-of-libc-free.patch
 
 BuildRequires:	cmake
 BuildRequires:	bison
@@ -155,6 +159,7 @@ Requires: nfs-ganesha = %{version}-%{release}
 This package contains a FSAL shared object to
 be used with NFS-Ganesha to support VFS based filesystems
 
+%if %{with proxy}
 %package proxy
 Summary: The NFS-GANESHA's PROXY FSAL
 Group: Applications/System
@@ -164,6 +169,7 @@ Requires: nfs-ganesha = %{version}-%{release}
 %description proxy
 This package contains a FSAL shared object to
 be used with NFS-Ganesha to support PROXY based filesystems
+%endif
 
 %if %{with utils}
 %package utils
@@ -329,6 +335,7 @@ be used with NFS-Ganesha to support Gluster
 %prep
 %setup -q -n %{name}-%{version}%{dev_version}
 rm -rf contrib/libzfswrapper
+%patch9999 -b.__gf_free -p1
 
 %build
 cd src && %cmake . -DCMAKE_BUILD_TYPE=Debug		\
@@ -351,7 +358,7 @@ cd src && %cmake . -DCMAKE_BUILD_TYPE=Debug		\
 	-DUSE_ADMIN_TOOLS=%{use_utils}			\
 	-DUSE_GUI_ADMIN_TOOLS=%{use_gui_utils}		\
 	-DUSE_FSAL_VFS=ON				\
-	-DUSE_FSAL_PROXY=ON				\
+	-DUSE_FSAL_PROXY=%{use_proxy}			\
 	-DUSE_DBUS=ON					\
 	-DUSE_9P=ON					\
 	-DDISTNAME_HAS_GIT_DATA=OFF			\
@@ -450,7 +457,7 @@ killall -SIGHUP dbus-daemon 2>&1 > /dev/null
 
 %files
 %defattr(-,root,root,-)
-%license src/LICENSE.txt
+%doc src/LICENSE.txt
 %{_bindir}/ganesha.nfsd
 %if ! %{with system_ntirpc}
 %{_libdir}/libntirpc.so.1.3.0
@@ -489,9 +496,11 @@ killall -SIGHUP dbus-daemon 2>&1 > /dev/null
 %config(noreplace) %{_sysconfdir}/ganesha/vfs.conf
 
 
+%if %{with proxy}
 %files proxy
 %defattr(-,root,root,-)
 %{_libdir}/ganesha/libfsalproxy*
+%endif
 
 # Optional packages
 %if %{with nullfs}
@@ -595,6 +604,13 @@ killall -SIGHUP dbus-daemon 2>&1 > /dev/null
 %endif
 
 %changelog
+* Fri Aug 12 2016 Niels de Vos <ndevos@redhat.com> 2.3.3-1
+- Update to version 2.3.3
+
+* Tue Aug 9 2016 Niels de Vos <ndevos@redhat.com> 2.3.2-3
+- Prevent GF_CALLOC()/free() mismatch when upcalls are enabled
+- Disable FSAL_PROXY
+
 * Sat Jul 30 2016 Niels de Vos <ndevos@redhat.com> 2.3.2-2
 - Disable FSAL_XFS for CentOS-6 build
 

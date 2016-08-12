@@ -1,0 +1,39 @@
+From 7f96d2a613a0dba24239ea10c75f161815b8a2f3 Mon Sep 17 00:00:00 2001
+From: Niels de Vos <ndevos@redhat.com>
+Date: Tue, 9 Aug 2016 18:11:45 +0200
+Subject: [PATCH] Use __gf_free() instead of libc/free()
+
+Signed-off-by: Niels de Vos <ndevos@redhat.com>
+---
+ src/FSAL/FSAL_GLUSTER/CMakeLists.txt | 1 +
+ src/FSAL/FSAL_GLUSTER/fsal_up.c      | 7 ++++++-
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/FSAL/FSAL_GLUSTER/fsal_up.c b/src/FSAL/FSAL_GLUSTER/fsal_up.c
+index e08372f..e9fab10 100644
+--- a/src/FSAL/FSAL_GLUSTER/fsal_up.c
++++ b/src/FSAL/FSAL_GLUSTER/fsal_up.c
+@@ -102,6 +102,11 @@ out:
+ 	return rc;
+ }
+ 
++/* mismatch of libglusterfs/GF_CALLOC and libc/free()
++ * http://review.gluster.org/14701 is the future
++ */
++extern void __gf_free(void *);
++
+ void *GLUSTERFSAL_UP_Thread(void *Arg)
+ {
+ 	struct glusterfs_export     *glfsexport                 = Arg;
+@@ -224,7 +229,7 @@ void *GLUSTERFSAL_UP_Thread(void *Arg)
+ 			continue;
+ 		}
+ 		if (cbk_inode_arg) {
+-			free(cbk_inode_arg);
++			__gf_free(cbk_inode_arg);
+ 			cbk_inode_arg = NULL;
+ 		}
+ 		callback.event_arg = NULL;
+-- 
+2.7.4
+
