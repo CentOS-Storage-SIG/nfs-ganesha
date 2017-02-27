@@ -88,7 +88,7 @@
 %global dev_version %{lua: extraver = string.gsub('', '%-', '.'); print(extraver) }
 
 Name:		nfs-ganesha
-Version:	2.4.1
+Version:	2.4.3
 Release:	1%{?dev_version:%{dev_version}}%{?dist}
 Summary:	NFS-Ganesha is a NFS Server running in user space
 Group:		Applications/System
@@ -96,8 +96,7 @@ License:	LGPLv3+
 Url:		https://github.com/nfs-ganesha/nfs-ganesha/wiki
 
 Source0:	 https://github.com/%{name}/%{name}/archive/V%{version}/%{name}-%{version}%{dev_version}.tar.gz
-Patch0001:	0001-FSAL_GLUSTER-Use-the-new-APIs-to-fetch-free-upcall-a.patch
-Patch0002:      0002-FSAL_VFS-initialize-unix_mode-to-prevent-compiler-er.patch
+Patch0001:      0001-FSAL_VFS-initialize-unix_mode-to-prevent-compiler-er.patch
 
 BuildRequires:	cmake
 BuildRequires:	bison flex
@@ -307,8 +306,7 @@ be used with NFS-Ganesha to support Gluster
 %prep
 %setup -q
 rm -rf contrib/libzfswrapper
-%patch0001 -b.glfs_free -p1
-%patch0002 -b.vfs-unix_mode -p1
+%patch0001 -b.vfs-unix_mode -p1
 
 %build
 cd src && %cmake . -DCMAKE_BUILD_TYPE=Debug		\
@@ -575,6 +573,10 @@ killall -SIGHUP dbus-daemon 2>&1 > /dev/null
 %endif
 
 %changelog
+* Mon Feb 27 2017 Niels de Vos <ndevos@redhat.com> 2.4.3-1
+- Update to version 2.4.3
+- Drop glfs_free() patch, it was upstreamed
+
 * Tue Nov 22 2016 Niels de Vos <ndevos@redhat.com> 2.4.1-1
 - Update to version 2.4.1
 
