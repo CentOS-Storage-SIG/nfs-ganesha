@@ -88,7 +88,7 @@
 %global dev_version %{lua: extraver = string.gsub('', '%-', '.'); print(extraver) }
 
 Name:		nfs-ganesha
-Version:	2.4.3
+Version:	2.4.5
 Release:	1%{?dev_version:%{dev_version}}%{?dist}
 Summary:	NFS-Ganesha is a NFS Server running in user space
 Group:		Applications/System
@@ -97,6 +97,7 @@ Url:		https://github.com/nfs-ganesha/nfs-ganesha/wiki
 
 Source0:	 https://github.com/%{name}/%{name}/archive/V%{version}/%{name}-%{version}%{dev_version}.tar.gz
 Patch0001:      0001-FSAL_VFS-initialize-unix_mode-to-prevent-compiler-er.patch
+Patch0002:      0002-FSAL_GLUSTER-fix-build-warning-on-32-bit-CentOS-6.patch
 
 BuildRequires:	cmake
 BuildRequires:	bison flex
@@ -307,6 +308,7 @@ be used with NFS-Ganesha to support Gluster
 %setup -q
 rm -rf contrib/libzfswrapper
 %patch0001 -b.vfs-unix_mode -p1
+%patch0002 -b.fsal_gluster-strfmt -p1
 
 %build
 cd src && %cmake . -DCMAKE_BUILD_TYPE=Debug		\
@@ -573,6 +575,10 @@ killall -SIGHUP dbus-daemon 2>&1 > /dev/null
 %endif
 
 %changelog
+* Tue Apr 11 2017 Niels de Vos <ndevos@redhat.com> 2.4.5-1
+- Update to version 2.4.5
+- add patch to fix string format error in FSAL_GLUSTER
+
 * Mon Feb 27 2017 Niels de Vos <ndevos@redhat.com> 2.4.3-1
 - Update to version 2.4.3
 - Drop glfs_free() patch, it was upstreamed

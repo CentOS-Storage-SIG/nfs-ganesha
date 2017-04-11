@@ -1,0 +1,40 @@
+From 3a7f59591fd820950f32bac16a83a054aaaedbf5 Mon Sep 17 00:00:00 2001
+From: Niels de Vos <ndevos@redhat.com>
+Date: Mon, 10 Apr 2017 21:48:42 +0200
+Subject: [PATCH] FSAL_GLUSTER: fix build warning on 32-bit CentOS-6
+
+While building NFS-Ganesha 2.4.5 for the CentOS Storage SIG, the
+following build error was reported:
+
+    cc1: warnings being treated as errors
+    /builddir/build/BUILD/nfs-ganesha-2.4.5/src/FSAL/FSAL_GLUSTER/export.c: In function 'glusterfs_free_fs':
+    /builddir/build/BUILD/nfs-ganesha-2.4.5/src/FSAL/FSAL_GLUSTER/export.c:609: error: format '%ld' expects type 'long int', but argument 7 has type 'quad_t'
+    make[2]: *** [FSAL/FSAL_GLUSTER/CMakeFiles/fsalgluster.dir/export.c.o] Error 1
+
+For 32-bit architectures, the %ld string format does not apply to
+int64_t values, instead the #define dependent PRIi64 should be used.
+
+Change-Id: Ideda1b2e58c26f8fa78a2aab013b46ee418be674
+Signed-off-by: Niels de Vos <ndevos@redhat.com>
+---
+ src/FSAL/FSAL_GLUSTER/export.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/FSAL/FSAL_GLUSTER/export.c b/src/FSAL/FSAL_GLUSTER/export.c
+index 622cbb7..de2b79a 100644
+--- a/src/FSAL/FSAL_GLUSTER/export.c
++++ b/src/FSAL/FSAL_GLUSTER/export.c
+@@ -607,8 +607,8 @@ glusterfs_free_fs(struct glusterfs_fs *gl_fs)
+ 
+ 	if (refcnt) {
+ 		LogDebug(COMPONENT_FSAL,
+-			 "There are still (%ld)active shares for volume(%s)",
+-			 gl_fs->refcnt, gl_fs->volname);
++			 "There are still (%"PRIi64")active shares for "
++			 "volume(%s)", gl_fs->refcnt, gl_fs->volname);
+ 		PTHREAD_MUTEX_unlock(&GlusterFS.lock);
+ 		return;
+ 	}
+-- 
+2.9.3
+
