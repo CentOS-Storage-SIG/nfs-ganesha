@@ -75,18 +75,18 @@ Requires: sles-release >= 12
 %bcond_without system_ntirpc
 %global use_system_ntirpc %{on_off_switch system_ntirpc}
 
-%global		dev rc7
-%global		dash_dev_version 2.5-rc7
+# %%global		dev rc7
+# %%global		dash_dev_version 2.5-rc7
 
 Name:		nfs-ganesha
 Version:	2.5.0
-Release:	0.7%{?dev:%{dev}}%{?dist}
+Release:	1%{?dev:%{dev}}%{?dist}
 Summary:	NFS-Ganesha is a NFS Server running in user space
 Group:		Applications/System
 License:	LGPLv3+
 Url:		https://github.com/nfs-ganesha/nfs-ganesha/wiki
 
-Source0:	https://github.com/%{name}/%{name}/archive/V%{dash_dev_version}/%{name}-%{dash_dev_version}.tar.gz
+Source0:	https://github.com/%{name}/%{name}/archive/V%{version}/%{name}-%{version}.tar.gz
 
 BuildRequires:	cmake
 BuildRequires:	bison
@@ -328,7 +328,7 @@ be used with NFS-Ganesha to support Gluster
 %endif
 
 %prep
-%setup -q -n %{name}-%{dash_dev_version}
+%setup -q -n %{name}-%{version}
 rm -rf contrib/libzfswrapper
 
 %build
@@ -606,6 +606,9 @@ exit 0
 %endif
 
 %changelog
+* Tue Jun 27 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.0-1
+- nfs-ganedha 2.5.0 GA
+
 * Mon May 22 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.0-0.7rc7
 - nfs-ganesha 2.5rc7
 
