@@ -14,8 +14,14 @@
 %endif
 
 %if ( 0%{?suse_version} )
+BuildRequires: distribution-release
+%if ( ! 0%{?is_opensuse} )
 BuildRequires: sles-release >= 12
 Requires: sles-release >= 12
+%else
+BuildRequires: openSUSE-release
+Requires: openSUSE-release
+%endif
 
 %global with_systemd 1
 %global with_nfsidmap 1
@@ -75,11 +81,19 @@ Requires: sles-release >= 12
 %bcond_without system_ntirpc
 %global use_system_ntirpc %{on_off_switch system_ntirpc}
 
-# %%global		dev rc7
-# %%global		dash_dev_version 2.5-rc7
+%bcond_without man_page
+%global use_man_page %{on_off_switch man_page}
+
+%if ( 0%{?rhel} && 0%{?rhel} < 7 )
+%global _rundir %{_localstatedir}/run
+%endif
+
+%global dev_version %{lua: s = string.gsub('@GANESHA_EXTRA_VERSION@', '^%-', ''); s2 = string.gsub(s, '%-', '.'); print(s2) }
+# %%global	dev final
+# %%global	dash_dev_version 2.5-final
 
 Name:		nfs-ganesha
-Version:	2.5.0
+Version:	2.5.2
 Release:	1%{?dev:%{dev}}%{?dist}
 Summary:	NFS-Ganesha is a NFS Server running in user space
 Group:		Applications/System
@@ -106,7 +120,9 @@ BuildRequires:	libblkid-devel
 BuildRequires:	libuuid-devel
 BuildRequires:	gcc-c++
 %if %{with system_ntirpc}
-BuildRequires:	libntirpc-devel >= 1.5.2
+BuildRequires:	libntirpc-devel >= 1.5.3
+%else
+Requires: libntirpc = @NTIRPC_VERSION_EMBED@
 %endif
 %if ( 0%{?fedora} )
 # this should effectively be a no-op, as all Fedora installs should have it
@@ -141,6 +157,9 @@ Requires(preun): systemd
 Requires(postun): systemd
 %else
 BuildRequires:	initscripts
+%endif
+%if %{with man_page}
+BuildRequires: python-sphinx
 %endif
 Requires(post): psmisc
 Requires(pre): shadow-utils
@@ -198,8 +217,13 @@ BuildRequires:	PyQt4-devel
 Requires:	PyQt4
 %endif
 %endif
-BuildRequires:  python2-devel
+%if ( 0%{?suse_version} )
+BuildRequires:	python-devel
+Requires: nfs-ganesha = %{version}-%{release}, python
+%else
+BuildRequires:	python2-devel
 Requires: nfs-ganesha = %{version}-%{release}, python2
+%endif
 
 %description utils
 This package contains utility scripts for managing the NFS-GANESHA server
@@ -210,7 +234,7 @@ This package contains utility scripts for managing the NFS-GANESHA server
 Summary: The NFS-GANESHA's library for use with LTTng
 Group: Applications/System
 BuildRequires: lttng-ust-devel >= 2.3
-Requires: nfs-ganesha = %{version}-%{release}, lttng-tools >= 2.3,  lttng-ust >= 2.3
+Requires: nfs-ganesha = %{version}-%{release}, lttng-tools >= 2.3, lttng-ust >= 2.3
 
 %description lttng
 This package contains the libganesha_trace.so library. When preloaded
@@ -240,7 +264,7 @@ Group: Applications/System
 Requires: nfs-ganesha = %{version}-%{release}
 
 %description mem
-This package contains a FSAL shared object to be used with NFS-Ganesha.  This
+This package contains a FSAL shared object to be used with NFS-Ganesha. This
 is used for speed and latency testing.
 %endif
 
@@ -321,6 +345,44 @@ This package contains a FSAL shared object to
 be used with NFS-Ganesha to support Gluster
 %endif
 
+# NTIRPC (if built-in)
+%if ! %{with system_ntirpc}
+%package -n libntirpc
+Summary:	New Transport Independent RPC Library
+Group:		System Environment/Libraries
+License:	BSD
+Version:	@NTIRPC_VERSION_EMBED@
+Url:		https://github.com/nfs-ganesha/ntirpc
+
+# libtirpc has /etc/netconfig, most machines probably have it anyway
+# for NFS client
+Requires:	libtirpc
+
+%description -n libntirpc
+This package contains a new implementation of the original libtirpc,
+transport-independent RPC (TI-RPC) library for NFS-Ganesha. It has
+the following features not found in libtirpc:
+ 1. Bi-directional operation
+ 2. Full-duplex operation on the TCP (vc) transport
+ 3. Thread-safe operating modes
+ 3.1 new locking primitives and lock callouts (interface change)
+ 3.2 stateless send/recv on the TCP transport (interface change)
+ 4. Flexible server integration support
+ 5. Event channels (remove static arrays of xprt handles, new EPOLL/KEVENT
+    integration)
+
+%package -n libntirpc-devel
+Summary:	Development headers for libntirpc
+Requires:	libntirpc = @NTIRPC_VERSION_EMBED@
+Group:		System Environment/Libraries
+License:	BSD
+Version:	@NTIRPC_VERSION_EMBED@
+Url:		https://github.com/nfs-ganesha/ntirpc
+
+%description -n libntirpc-devel
+Development headers and auxiliary files for developing with %{name}.
+%endif
+
 %prep
 %setup -q -n %{name}-%{version}
 rm -rf contrib/libzfswrapper
@@ -328,6 +390,7 @@ rm -rf contrib/libzfswrapper
 %build
 cd src && %cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo	\
 	-DBUILD_CONFIG=rpmbuild				\
+	-DDSANITIZE_ADDRESS=OFF				\
 	-DUSE_FSAL_NULL=%{use_fsal_null}		\
 	-DUSE_FSAL_MEM=%{use_fsal_mem}			\
 	-DUSE_FSAL_ZFS=NO				\
@@ -347,6 +410,7 @@ cd src && %cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo	\
 	-DUSE_DBUS=ON					\
 	-DUSE_9P=ON					\
 	-DDISTNAME_HAS_GIT_DATA=OFF			\
+	-DUSE_MAN_PAGE=%{use_man_page}			\
 %if %{with jemalloc}
 	-DALLOCATOR=jemalloc
 %endif
@@ -361,22 +425,18 @@ mkdir -p %{buildroot}%{_sysconfdir}/logrotate.d
 mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_sbindir}
 mkdir -p %{buildroot}%{_libdir}/ganesha
-mkdir -p %{buildroot}%{_localstatedir}/run/ganesha
+mkdir -p %{buildroot}%{_rundir}/ganesha
 mkdir -p %{buildroot}%{_libexecdir}/ganesha
 cd src
 install -m 644 config_samples/logrotate_ganesha	%{buildroot}%{_sysconfdir}/logrotate.d/ganesha
 install -m 644 scripts/ganeshactl/org.ganesha.nfsd.conf	%{buildroot}%{_sysconfdir}/dbus-1/system.d
 install -m 755 scripts/nfs-ganesha-config.sh	%{buildroot}%{_libexecdir}/ganesha
 install -m 755 tools/mount.9P	%{buildroot}%{_sbindir}/mount.9P
-
 install -m 644 config_samples/vfs.conf %{buildroot}%{_sysconfdir}/ganesha
-%if %{with rgw}
-install -m 644 config_samples/rgw.conf %{buildroot}%{_sysconfdir}/ganesha
-%endif
 
 %if %{with_systemd}
 mkdir -p %{buildroot}%{_unitdir}
-install -m 644 scripts/systemd/nfs-ganesha.service	%{buildroot}%{_unitdir}/nfs-ganesha.service
+install -m 644 scripts/systemd/nfs-ganesha.service.el7	%{buildroot}%{_unitdir}/nfs-ganesha.service
 install -m 644 scripts/systemd/nfs-ganesha-lock.service	%{buildroot}%{_unitdir}/nfs-ganesha-lock.service
 install -m 644 scripts/systemd/nfs-ganesha-config.service	%{buildroot}%{_unitdir}/nfs-ganesha-config.service
 install -m 644 scripts/systemd/sysconfig/nfs-ganesha	%{buildroot}%{_sysconfdir}/sysconfig/ganesha
@@ -438,7 +498,7 @@ killall -SIGHUP dbus-daemon >/dev/null 2>&1 || :
 
 %pre
 getent group ganesha > /dev/null || groupadd -r ganesha
-getent passwd ganesha > /dev/null || useradd -r -g ganesha -d /var/run/ganesha -s /sbin/nologin -c "NFS-Ganesha Daemon" ganesha
+getent passwd ganesha > /dev/null || useradd -r -g ganesha -d %{_rundir}/ganesha -s /sbin/nologin -c "NFS-Ganesha Daemon" ganesha
 exit 0
 
 %preun
@@ -453,6 +513,7 @@ exit 0
 %postun
 %if ( 0%{?suse_version} )
 %service_del_postun nfs-ganesha-lock.service
+%debug_package
 %else
 %if %{with_systemd}
 %systemd_postun_with_restart nfs-ganesha-lock.service
@@ -462,13 +523,6 @@ exit 0
 %files
 %license src/LICENSE.txt
 %{_bindir}/ganesha.nfsd
-%if ! %{with system_ntirpc}
-%{_libdir}/libntirpc.so.1.5.0
-%{_libdir}/libntirpc.so.1.5
-%{_libdir}/libntirpc.so
-%{_libdir}/pkgconfig/libntirpc.pc
-%{_includedir}/ntirpc/
-%endif
 %config %{_sysconfdir}/dbus-1/system.d/org.ganesha.nfsd.conf
 %config(noreplace) %{_sysconfdir}/sysconfig/ganesha
 %config(noreplace) %{_sysconfdir}/logrotate.d/ganesha
@@ -477,7 +531,7 @@ exit 0
 %dir %{_defaultdocdir}/ganesha/
 %{_defaultdocdir}/ganesha/*
 %doc src/ChangeLog
-%dir %{_localstatedir}/run/ganesha
+%dir %{_rundir}/ganesha
 %dir %{_libexecdir}/ganesha/
 %{_libexecdir}/ganesha/nfs-ganesha-config.sh
 %dir %attr(0755,ganesha,ganesha) %{_localstatedir}/log/ganesha
@@ -493,17 +547,33 @@ exit 0
 %{_sysconfdir}/init.d/nfs-ganesha
 %endif
 
+%if %{with man_page}
+%{_mandir}/*/ganesha-config.8.gz
+%{_mandir}/*/ganesha-core-config.8.gz
+%{_mandir}/*/ganesha-export-config.8.gz
+%{_mandir}/*/ganesha-cache-config.8.gz
+%{_mandir}/*/ganesha-log-config.8.gz
+%endif
+
+
 %files mount-9P
 %{_sbindir}/mount.9P
-
+%if %{with man_page}
+%{_mandir}/*/ganesha-9p-config.8.gz
+%endif
 
 %files vfs
 %{_libdir}/ganesha/libfsalvfs*
 %config(noreplace) %{_sysconfdir}/ganesha/vfs.conf
-
+%if %{with man_page}
+%{_mandir}/*/ganesha-vfs-config.8.gz
+%endif
 
 %files proxy
 %{_libdir}/ganesha/libfsalproxy*
+%if %{with man_page}
+%{_mandir}/*/ganesha-proxy-config.8.gz
+%endif
 
 # Optional packages
 %if %{with nullfs}
@@ -529,18 +599,27 @@ exit 0
 %if ! %{with_systemd}
 %{_sysconfdir}/init.d/nfs-ganesha-gpfs
 %endif
+%if %{with man_page}
+%{_mandir}/*/ganesha-gpfs-config.8.gz
+%endif
 %endif
 
 %if %{with xfs}
 %files xfs
 %{_libdir}/ganesha/libfsalxfs*
 %config(noreplace) %{_sysconfdir}/ganesha/xfs.conf
+%if %{with man_page}
+%{_mandir}/*/ganesha-xfs-config.8.gz
+%endif
 %endif
 
 %if %{with ceph}
 %files ceph
 %{_libdir}/ganesha/libfsalceph*
 %config(noreplace) %{_sysconfdir}/ganesha/ceph.conf
+%if %{with man_page}
+%{_mandir}/*/ganesha-ceph-config.8.gz
+%endif
 %endif
 
 %if %{with rgw}
@@ -549,12 +628,33 @@ exit 0
 %{_libdir}/ganesha/libfsalrgw*
 %config(noreplace) %{_sysconfdir}/ganesha/rgw.conf
 %config(noreplace) %{_sysconfdir}/ganesha/rgw_bucket.conf
+%if %{with man_page}
+%{_mandir}/*/ganesha-rgw-config.8.gz
+%endif
 %endif
 
 %if %{with gluster}
 %files gluster
 %config(noreplace) %{_sysconfdir}/logrotate.d/ganesha-gfapi
 %{_libdir}/ganesha/libfsalgluster*
+%if %{with man_page}
+%{_mandir}/*/ganesha-gluster-config.8.gz
+%endif
+%endif
+
+%if ! %{with system_ntirpc}
+%files -n libntirpc
+%defattr(-,root,root,-)
+%{_libdir}/libntirpc.so.@NTIRPC_VERSION_EMBED@
+%{_libdir}/libntirpc.so.1.5
+%{_libdir}/libntirpc.so
+%{!?_licensedir:%global license %%doc}
+%license libntirpc/COPYING
+%doc libntirpc/NEWS libntirpc/README
+%files -n libntirpc-devel
+%{_libdir}/pkgconfig/libntirpc.pc
+%dir %{_includedir}/ntirpc
+%{_includedir}/ntirpc/*
 %endif
 
 %if %{with panfs}
@@ -593,10 +693,13 @@ exit 0
 %{_bindir}/sm_notify.ganesha
 %{_bindir}/ganesha_mgr
 %{_bindir}/ganesha_conf
-%{_mandir}/*/*
+%{_mandir}/*/ganesha_conf.8.gz
 %endif
 
 %changelog
+* Wed Aug 30 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.2-1
+- nfs-ganesha 2.5.2 GA
+
 * Mon Jun 26 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.0-1
 - nfs-ganesha 2.5.0 GA
 
