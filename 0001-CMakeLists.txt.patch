@@ -1,0 +1,13 @@
+--- nfs-ganesha-2.5.3/src/CMakeLists.txt.orig	2017-10-20 13:47:10.336692216 -0400
++++ nfs-ganesha-2.5.3/src/CMakeLists.txt	2017-10-20 13:47:23.541692216 -0400
+@@ -82,10 +82,6 @@
+      message( STATUS "Detected a Linux openSUSE machine" )
+      set(DISTRO "SLES")
+      set(LIBEXECDIR "/usr/lib")
+-  elseif( ${SYS_RELEASE} MATCHES "Debian GNU/Linux" OR ${SYS_RELEASE} MATCHES "Ubuntu")
+-     message( STATUS "Detected a Linux Debian base machine" )
+-     set(DISTRO "DEBIAN")
+-     set(LIBEXECDIR "/usr/lib")
+   else( ${SYS_RELEASE} MATCHES "Red Hat" )
+      message( STATUS "Detected an UNKNOWN Linux machine" )
+      set(DISTRO "UNKNOWN")

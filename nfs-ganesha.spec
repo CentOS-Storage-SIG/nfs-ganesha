@@ -104,6 +104,7 @@ License:	LGPLv3+
 Url:		https://github.com/nfs-ganesha/nfs-ganesha/wiki
 
 Source0:	https://github.com/%{name}/%{name}/archive/V%{version}/%{name}-%{version}.tar.gz
+Patch0:		0001-CMakeLists.txt.patch
 
 BuildRequires:	cmake
 BuildRequires:	bison flex
@@ -404,6 +405,7 @@ Development headers and auxiliary files for developing with %{name}.
 
 %prep
 %setup -q -n %{name}-%{version}
+%patch0 -p1
 
 %build
 cd src && %cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo	\
@@ -558,6 +560,7 @@ exit 0
 %endif
 
 %files
+%{!?_licensedir:%global license %%doc}
 %license src/LICENSE.txt
 %{_bindir}/ganesha.nfsd
 %config %{_sysconfdir}/dbus-1/system.d/org.ganesha.nfsd.conf
