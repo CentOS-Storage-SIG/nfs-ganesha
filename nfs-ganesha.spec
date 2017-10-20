@@ -81,11 +81,15 @@ Requires: sles-release >= 12
 %bcond_without man_page
 %global use_man_page %{on_off_switch man_page}
 
+%if ( 0%{?rhel} && 0%{?rhel} < 7 )
+%global _rundir %{_localstatedir}/run
+%endif
+
 # %%global		dev rc7
 # %%global		dash_dev_version 2.5-rc7
 
 Name:		nfs-ganesha
-Version:	2.5.1.1
+Version:	2.5.3
 Release:	1%{?dev:%{dev}}%{?dist}
 Summary:	NFS-Ganesha is a NFS Server running in user space
 Group:		Applications/System
@@ -116,7 +120,7 @@ BuildRequires:	libblkid-devel
 BuildRequires:	libuuid-devel
 BuildRequires:	gcc-c++
 %if %{with system_ntirpc}
-BuildRequires:	libntirpc-devel >= 1.5.2
+BuildRequires:	libntirpc-devel >= 1.5.3
 %endif
 %if ( 0%{?fedora} )
 # this should effectively be a no-op, as all Fedora installs should have it
@@ -288,7 +292,7 @@ be used with NFS-Ganesha to support ZFS
 Summary: The NFS-GANESHA's CephFS FSAL
 Group: Applications/System
 Requires:	nfs-ganesha = %{version}-%{release}
-BuildRequires:	libcephfs1-devel >= 10.2.0
+BuildRequires:	libcephfs1-devel >= 10.2.7
 
 %description ceph
 This package contains a FSAL shared object to
@@ -301,7 +305,7 @@ be used with NFS-Ganesha to support CephFS
 Summary: The NFS-GANESHA's Ceph RGW FSAL
 Group: Applications/System
 Requires:	nfs-ganesha = %{version}-%{release}
-BuildRequires:	librgw2-devel >= 10.2.0
+BuildRequires:	librgw2-devel >= 10.2.7
 
 %description rgw
 This package contains a FSAL shared object to
@@ -347,6 +351,44 @@ This package contains a FSAL shared object to
 be used with NFS-Ganesha to support Gluster
 %endif
 
+# NTIRPC (if built-in)
+%if ! %{with system_ntirpc}
+%package -n libntirpc
+Summary:       New Transport Independent RPC Library
+Group:         System Environment/Libraries
+License:       BSD
+Version:       @NTIRPC_VERSION_EMBED@
+Url:           https://github.com/nfs-ganesha/ntirpc
+
+# libtirpc has /etc/netconfig, most machines probably have it anyway
+# for NFS client
+Requires:      libtirpc
+
+%description -n libntirpc
+This package contains a new implementation of the original libtirpc,
+transport-independent RPC (TI-RPC) library for NFS-Ganesha. It has
+the following features not found in libtirpc:
+ 1. Bi-directional operation
+ 2. Full-duplex operation on the TCP (vc) transport
+ 3. Thread-safe operating modes
+ 3.1 new locking primitives and lock callouts (interface change)
+ 3.2 stateless send/recv on the TCP transport (interface change)
+ 4. Flexible server integration support
+ 5. Event channels (remove static arrays of xprt handles, new EPOLL/KEVENT
+    integration)
+
+%package -n libntirpc-devel
+Summary:       Development headers for libntirpc
+Requires:      libntirpc = @NTIRPC_VERSION_EMBED@
+Group:         System Environment/Libraries
+License:       BSD
+Version:       @NTIRPC_VERSION_EMBED@
+Url:           https://github.com/nfs-ganesha/ntirpc
+
+%description -n libntirpc-devel
+Development headers and auxiliary files for developing with %{name}.
+%endif
+
 %prep
 %setup -q -n %{name}-%{version}
 
@@ -387,7 +429,7 @@ mkdir -p %{buildroot}%{_sysconfdir}/logrotate.d
 mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_sbindir}
 mkdir -p %{buildroot}%{_libdir}/ganesha
-mkdir -p %{buildroot}%{_localstatedir}/run/ganesha
+mkdir -p %{buildroot}%{_rundir}/ganesha
 mkdir -p %{buildroot}%{_libexecdir}/ganesha
 cd src
 install -m 644 config_samples/logrotate_ganesha	%{buildroot}%{_sysconfdir}/logrotate.d/ganesha
@@ -396,12 +438,15 @@ install -m 755 scripts/nfs-ganesha-config.sh %{buildroot}%{_libexecdir}/ganesha
 install -m 755 tools/mount.9P	%{buildroot}%{_sbindir}/mount.9P
 
 install -m 644 config_samples/vfs.conf %{buildroot}%{_sysconfdir}/ganesha
+%if %{with rgw}
+install -m 644 config_samples/rgw.conf %{buildroot}%{_sysconfdir}/ganesha
+%endif
 
 %if %{with_systemd}
 mkdir -p %{buildroot}%{_unitdir}
 
 install -m 644 scripts/systemd/nfs-ganesha.service.el7	%{buildroot}%{_unitdir}/nfs-ganesha.service
-install -m 644 scripts/systemd/nfs-ganesha-lock.service	%{buildroot}%{_unitdir}/nfs-ganesha-lock.service
+install -m 644 scripts/systemd/nfs-ganesha-lock.service.el7	%{buildroot}%{_unitdir}/nfs-ganesha-lock.service
 install -m 644 scripts/systemd/nfs-ganesha-config.service %{buildroot}%{_unitdir}/nfs-ganesha-config.service
 install -m 644 scripts/systemd/sysconfig/nfs-ganesha	%{buildroot}%{_sysconfdir}/sysconfig/ganesha
 %if 0%{?_tmpfilesdir:1}
@@ -459,6 +504,14 @@ make DESTDIR=%{buildroot} install
 %if ( 0%{?suse_version} )
 %service_add_post nfs-ganesha.service nfs-ganesha-lock.service nfs-ganesha-config.service
 %else
+%if ( 0%{?fedora} || ( 0%{?rhel} && 0%{?rhel} > 6 ) )
+semanage fcontext -a -t ganesha_var_log_t %{_localstatedir}/log/ganesha > /dev/null 2>&1 || :
+semanage fcontext -a -t ganesha_var_log_t %{_localstatedir}/log/ganesha/ganesha.log > /dev/null 2>&1 || :
+%if %{with gluster}
+semanage fcontext -a -t ganesha_var_log_t %{_localstatedir}/log/ganesha/ganesha-gfapi.log > /dev/null 2>&1 || :
+%endif
+restorecon %{_localstatedir}/log/ganesha
+%endif
 %if %{with_systemd}
 %systemd_post nfs-ganesha.service
 %systemd_post nfs-ganesha-lock.service
@@ -469,7 +522,7 @@ killall -SIGHUP dbus-daemon >/dev/null 2>&1 || :
 
 %pre
 getent group ganesha > /dev/null || groupadd -r ganesha
-getent passwd ganesha > /dev/null || useradd -r -g ganesha -d /var/run/ganesha -s /sbin/nologin -c "NFS-Ganesha Daemon" ganesha
+getent passwd ganesha > /dev/null || useradd -r -g ganesha -d %{_rundir}/ganesha -s /sbin/nologin -c "NFS-Ganesha Daemon" ganesha
 exit 0
 
 %preun
@@ -494,13 +547,6 @@ exit 0
 %files
 %license src/LICENSE.txt
 %{_bindir}/ganesha.nfsd
-%if ! %{with system_ntirpc}
-%{_libdir}/libntirpc.so.1.5.0
-%{_libdir}/libntirpc.so.1.5
-%{_libdir}/libntirpc.so
-%{_libdir}/pkgconfig/libntirpc.pc
-%{_includedir}/ntirpc/
-%endif
 %config %{_sysconfdir}/dbus-1/system.d/org.ganesha.nfsd.conf
 %config(noreplace) %{_sysconfdir}/sysconfig/ganesha
 %config(noreplace) %{_sysconfdir}/logrotate.d/ganesha
@@ -509,10 +555,10 @@ exit 0
 %dir %{_defaultdocdir}/ganesha/
 %{_defaultdocdir}/ganesha/*
 %doc src/ChangeLog
-%dir %{_localstatedir}/run/ganesha
+%dir %{_rundir}/ganesha
 %dir %{_libexecdir}/ganesha
 %{_libexecdir}/ganesha/nfs-ganesha-config.sh
-%dir %attr(0755,ganesha,ganesha) %{_localstatedir}/log/ganesha
+%dir %attr(0775,ganesha,ganesha) %{_localstatedir}/log/ganesha
 
 %if %{with_systemd}
 %{_unitdir}/nfs-ganesha.service
@@ -627,6 +673,21 @@ exit 0
 %if %{with man_page}
 %{_mandir}/*/ganesha-gluster-config.8.gz
 %endif
+%endif
+
+%if ! %{with system_ntirpc}
+%files -n libntirpc
+%defattr(-,root,root,-)
+%{_libdir}/libntirpc.so.@NTIRPC_VERSION_EMBED@
+%{_libdir}/libntirpc.so.1.5
+%{_libdir}/libntirpc.so
+%{!?_licensedir:%global license %%doc}
+%license libntirpc/COPYING
+%doc libntirpc/NEWS libntirpc/README
+%files -n libntirpc-devel
+%{_libdir}/pkgconfig/libntirpc.pc
+%dir %{_includedir}/ntirpc
+%{_includedir}/ntirpc/*
 %endif
 
 %if %{with panfs}
