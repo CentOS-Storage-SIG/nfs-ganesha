@@ -292,7 +292,7 @@ be used with NFS-Ganesha to support ZFS
 Summary: The NFS-GANESHA's CephFS FSAL
 Group: Applications/System
 Requires:	nfs-ganesha = %{version}-%{release}
-BuildRequires:	libcephfs1-devel >= 10.2.7
+BuildRequires:	libcephfs1-devel >= 12.2.1
 
 %description ceph
 This package contains a FSAL shared object to
@@ -305,7 +305,7 @@ be used with NFS-Ganesha to support CephFS
 Summary: The NFS-GANESHA's Ceph RGW FSAL
 Group: Applications/System
 Requires:	nfs-ganesha = %{version}-%{release}
-BuildRequires:	librgw2-devel >= 10.2.7
+BuildRequires:	librgw2-devel >= 12.2.1
 
 %description rgw
 This package contains a FSAL shared object to
@@ -737,6 +737,9 @@ exit 0
 %endif
 
 %changelog
+* Tue Oct 24 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.3-1
+- nfs-ganesha 2.5.3 GA
+
 * Thu Aug 10 2017 Niels de Vos <ndevos@redhat.com> 2.5.1.1-1
 - nfs-ganesha 2.5.1.1 GA
 
