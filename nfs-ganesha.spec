@@ -106,7 +106,7 @@ Requires: openSUSE-release
 #%%global	dash_dev_version 2.6-rc5
 
 Name:		nfs-ganesha
-Version:	2.6.0
+Version:	2.6.1
 Release:	1%{?dev:%{dev}}%{?dist}
 Summary:	NFS-Ganesha is a NFS Server running in user space
 Group:		Applications/System
@@ -136,7 +136,7 @@ BuildRequires:	libblkid-devel
 BuildRequires:	libuuid-devel
 BuildRequires:	gcc-c++
 %if %{with system_ntirpc}
-BuildRequires:	libntirpc-devel = 1.6.1
+BuildRequires:	libntirpc-devel = 1.6.2
 %else
 Requires: libntirpc = @NTIRPC_VERSION_EMBED@
 %endif
@@ -744,6 +744,9 @@ exit 0
 %endif
 
 %changelog
+* Wed Mar 21 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.6.1-1
+- nfs-ganesha 2.6.1 GA
+
 * Tue Feb 20 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.6.0-1
 - nfs-ganesha 2.6.0 GA
 
