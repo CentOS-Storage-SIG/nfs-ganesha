@@ -97,7 +97,7 @@ Requires: sles-release >= 12
 
 Name:		nfs-ganesha
 Version:	2.5.5
-Release:	1%{?dev:%{dev}}%{?dist}
+Release:	2%{?dev:%{dev}}%{?dist}
 Summary:	NFS-Ganesha is a NFS Server running in user space
 Group:		Applications/System
 License:	LGPLv3+
@@ -445,6 +445,7 @@ mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_sbindir}
 mkdir -p %{buildroot}%{_libdir}/ganesha
 mkdir -p %{buildroot}%{_rundir}/ganesha
+mkdir -p %{buildroot}%{_localstatedir}/log/ganesha
 mkdir -p %{buildroot}%{_libexecdir}/ganesha
 cd src
 install -m 644 config_samples/logrotate_ganesha	%{buildroot}%{_sysconfdir}/logrotate.d/ganesha
@@ -468,7 +469,6 @@ install -m 644 scripts/systemd/sysconfig/nfs-ganesha	%{buildroot}%{_sysconfdir}/
 mkdir -p %{buildroot}%{_tmpfilesdir}
 install -m 644 scripts/systemd/tmpfiles.d/ganesha.conf	%{buildroot}%{_tmpfilesdir}
 %endif
-mkdir -p %{buildroot}%{_localstatedir}/log/ganesha
 %else
 mkdir -p %{buildroot}%{_sysconfdir}/init.d
 install -m 755 scripts/init.d/nfs-ganesha.el6		%{buildroot}%{_sysconfdir}/init.d/nfs-ganesha
@@ -755,6 +755,9 @@ exit 0
 %endif
 
 %changelog
+* Thu Jun 14 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.5-2
+- nfs-ganesha 2.5.5 /var/log/ganesha/
+
 * Mon Jan 29 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.5-1
 - nfs-ganesha 2.5.5 GA
 
