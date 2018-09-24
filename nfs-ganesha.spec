@@ -49,12 +49,11 @@ Requires: openSUSE-release
 %bcond_with gpfs
 %global use_fsal_gpfs %{on_off_switch gpfs}
 
-%ifarch i686
 %bcond_with xfs
-%else
-%bcond_without xfs
-%endif
 %global use_fsal_xfs %{on_off_switch xfs}
+
+%bcond_with lustre
+%global use_fsal_lustre %{on_off_switch lustre}
 
 %bcond_with ceph
 %global use_fsal_ceph %{on_off_switch ceph}
@@ -101,6 +100,12 @@ Requires: openSUSE-release
 %bcond_with rados_urls
 %global use_rados_urls %{on_off_switch rados_urls}
 
+%bcond_without rpcbind
+%global use_rpcbind %{on_off_switch rpcbind}
+
+%bcond_with mspac_support
+%global use_mspac_support %{on_off_switch mspac_support}
+
 %if ( 0%{?rhel} && 0%{?rhel} < 7 )
 %global _rundir %{_localstatedir}/run
 %endif
@@ -110,7 +115,7 @@ Requires: openSUSE-release
 #%%global	dash_dev_version 2.6-rc5
 
 Name:		nfs-ganesha
-Version:	2.6.3
+Version:	2.7.0
 Release:	1%{?dev:%{dev}}%{?dist}
 Summary:	NFS-Ganesha is a NFS Server running in user space
 Group:		Applications/System
@@ -138,9 +143,12 @@ Requires:	dbus
 BuildRequires:	libcap-devel
 BuildRequires:	libblkid-devel
 BuildRequires:	libuuid-devel
+%if ( 0%{?with_mspac_support} )
+BuildRequires: libwbclient-devel
+%endif
 BuildRequires:	gcc-c++
 %if %{with system_ntirpc}
-BuildRequires:	libntirpc-devel = 1.6.3
+BuildRequires:	libntirpc-devel = 1.7.0
 %else
 Requires: libntirpc = @NTIRPC_VERSION_EMBED@
 %endif
@@ -150,10 +158,12 @@ Requires: libntirpc = @NTIRPC_VERSION_EMBED@
 Requires:	policycoreutils-python
 %endif
 Requires:	nfs-utils
+%if ( 0%{?with_rpcbind} )
 %if ( 0%{?fedora} ) || ( 0%{?rhel} && 0%{?rhel} >= 6 ) || ( 0%{?suse_version} )
 Requires:	rpcbind
 %else
 Requires:	portmap
+%endif
 %endif
 %if %{with_nfsidmap}
 %if ( 0%{?suse_version} )
@@ -203,6 +213,7 @@ to simplify mounting to NFS-GANESHA. This is a 9p mount helper.
 Summary: The NFS-GANESHA's VFS FSAL
 Group: Applications/System
 BuildRequires: libattr-devel
+Obsoletes: %{name}-xfs <= %{version}
 Requires: nfs-ganesha = %{version}-%{release}
 
 %description vfs
@@ -259,8 +270,8 @@ This package contains utility scripts for managing the NFS-GANESHA server
 %package lttng
 Summary: The NFS-GANESHA's library for use with LTTng
 Group: Applications/System
-BuildRequires: lttng-ust-devel >= 2.3
-Requires: nfs-ganesha = %{version}-%{release}, lttng-tools >= 2.3, lttng-ust >= 2.3
+BuildRequires: lttng-tools-devel >= 2.3
+Requires: nfs-ganesha = %{version}-%{release}
 
 %description lttng
 This package contains the libganesha_trace.so library. When preloaded
@@ -268,15 +279,15 @@ to the ganesha.nfsd server, it makes it possible to trace using LTTng.
 %endif
 
 %if %{with rados_recov}
-%package rados
+%package rados-grace
 Summary: The NFS-GANESHA's library for recovery backend
 Group: Applications/System
 BuildRequires: librados-devel >= 0.61
 Requires: nfs-ganesha = %{version}-%{release}
 
 %description rados
-This package contains the librados.so library. Ganesha uses it to
-store client tracking data in ceph cluster.
+This package contains the ganesha-rados-grace tool for interacting with the
+database used by the rados_cluster recovery backend.
 %endif
 
 # Option packages start here. use "rpmbuild --with gpfs" (or equivalent)
@@ -357,6 +368,21 @@ This package contains a shared object to be used with FSAL_VFS
 to support XFS correctly
 %endif
 
+#LUSTRE
+%if %{with lustre}
+%package lustre
+Summary: The NFS-GANESHA's LUSTRE FSAL
+Group: Applications/System
+BuildRequires: libattr-devel
+BuildRequires: lustre-client
+Requires: nfs-ganesha = %{version}-%{release}
+Requires: lustre-client
+
+%description lustre
+This package contains a FSAL shared object to
+be used with NFS-Ganesha to support LUSTRE based filesystems
+%endif
+
 # PANFS
 %if %{with panfs}
 %package panfs
@@ -431,6 +457,7 @@ cd src && %cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo	\
 	-DUSE_FSAL_NULL=%{use_fsal_null}		\
 	-DUSE_FSAL_MEM=%{use_fsal_mem}			\
 	-DUSE_FSAL_XFS=%{use_fsal_xfs}			\
+	-DUSE_FSAL_LUSTRE=%{use_fsal_lustre}		\
 	-DUSE_FSAL_CEPH=%{use_fsal_ceph}		\
 	-DUSE_FSAL_RGW=%{use_fsal_rgw}			\
 	-DUSE_FSAL_GPFS=%{use_fsal_gpfs}		\
@@ -492,12 +519,20 @@ install -m 755 scripts/init.d/nfs-ganesha.el6		%{buildroot}%{_sysconfdir}/init.d
 install -m 644 scripts/init.d/sysconfig/ganesha		%{buildroot}%{_sysconfdir}/sysconfig/ganesha
 %endif
 
+%if %{with lustre}
+install -m 644 config_samples/lustre.conf %{buildroot}%{_sysconfdir}/ganesha
+%endif
+
 %if %{with xfs}
 install -m 644 config_samples/xfs.conf %{buildroot}%{_sysconfdir}/ganesha
 %endif
 
 %if %{with ceph}
 install -m 644 config_samples/ceph.conf %{buildroot}%{_sysconfdir}/ganesha
+%endif
+
+%if %{with rados_recov}
+install -m 755 tools/ganesha-rados-grace       %{buildroot}%{_bindir}/ganesha-rados-grace
 %endif
 
 %if %{with rgw}
@@ -606,6 +641,15 @@ exit 0
 %{_mandir}/*/ganesha-log-config.8.gz
 %endif
 
+%if %{with rados_recov}
+%files rados-grace
+%{_bindir}/ganesha-rados-grace
+%if %{with man_page}
+%{_mandir}/*/ganesha-rados-grace.8.gz
+%{_mandir}/*/ganesha-rados-cluster-design.8.gz
+%endif
+%endif
+
 %files mount-9P
 %{_sbindir}/mount.9P
 %if %{with man_page}
@@ -627,6 +671,15 @@ exit 0
 %endif
 
 # Optional packages
+%if %{with lustre}
+%files lustre
+%{_libdir}/ganesha/libfsallustre*
+%config(noreplace) %{_sysconfdir}/ganesha/lustre.conf
+%if %{with man_page}
+%{_mandir}/*/ganesha-lustre-config.8.gz
+%endif
+%endif
+
 %if %{with nullfs}
 %files nullfs
 %{_libdir}/ganesha/libfsalnull*
@@ -739,7 +792,6 @@ exit 0
 %{_bindir}/fake_recall
 %{_bindir}/get_clientids
 %{_bindir}/grace_period
-%{_bindir}/purge_gids
 %{_bindir}/ganesha_stats
 %{_bindir}/sm_notify.ganesha
 %{_bindir}/ganesha_mgr
@@ -748,6 +800,9 @@ exit 0
 %endif
 
 %changelog
+* Mon Sep 24 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.7.0-1
+- nfs-ganesha 2.7.0 GA
+
 * Thu Aug 23 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.6.3-1
 - nfs-ganesha 2.6.3 GA
 
