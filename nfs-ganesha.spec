@@ -96,8 +96,11 @@ Requires: openSUSE-release
 %bcond_without rpcbind
 %global use_rpcbind %{on_off_switch rpcbind}
 
-%bcond_without mspac_support
+%bcond_with mspac_support
 %global use_mspac_support %{on_off_switch mspac_support}
+
+%bcond_with sanitize_address
+%global use_sanitize_address %{on_off_switch sanitize_address}
 
 %if ( 0%{?rhel} && 0%{?rhel} < 7 )
 %global _rundir %{_localstatedir}/run
@@ -108,10 +111,9 @@ Requires: openSUSE-release
 #%%global	dash_dev_version 2.6-rc5
 
 Name:		nfs-ganesha
-Version:	2.7.0
+Version:	2.7.1
 Release:	1%{?dev:%{dev}}%{?dist}
 Summary:	NFS-Ganesha is a NFS Server running in user space
-Group:		Applications/System
 License:	LGPLv3+
 Url:		https://github.com/nfs-ganesha/nfs-ganesha/wiki
 
@@ -141,7 +143,7 @@ BuildRequires: libwbclient-devel
 %endif
 BuildRequires:	gcc-c++
 %if %{with system_ntirpc}
-BuildRequires:	libntirpc-devel = 1.7.0
+BuildRequires:	libntirpc-devel = 1.7.1
 %else
 Requires: libntirpc = @NTIRPC_VERSION_EMBED@
 %endif
@@ -149,6 +151,9 @@ Requires: libntirpc = @NTIRPC_VERSION_EMBED@
 # this should effectively be a no-op, as all Fedora installs should have it
 # with selinux.
 Requires:	policycoreutils-python
+%endif
+%if %{with sanitize_address}
+BuildRequires: libasan
 %endif
 Requires:	nfs-utils
 %if ( 0%{?with_rpcbind} )
@@ -196,15 +201,13 @@ shared objects to support different file systems and name-spaces.
 
 %package mount-9P
 Summary: a 9p mount helper
-Group: Applications/System
 
 %description mount-9P
 This package contains the mount.9P script that clients can use
 to simplify mounting to NFS-GANESHA. This is a 9p mount helper.
 
 %package vfs
-Summary: The NFS-GANESHA's VFS FSAL
-Group: Applications/System
+Summary: The NFS-GANESHA VFS FSAL
 BuildRequires: libattr-devel
 Obsoletes: %{name}-xfs <= %{version}
 Requires: nfs-ganesha = %{version}-%{release}
@@ -214,8 +217,7 @@ This package contains a FSAL shared object to
 be used with NFS-Ganesha to support VFS based filesystems
 
 %package proxy
-Summary: The NFS-GANESHA's PROXY FSAL
-Group: Applications/System
+Summary: The NFS-GANESHA PROXY FSAL
 BuildRequires: libattr-devel
 Requires: nfs-ganesha = %{version}-%{release}
 
@@ -225,8 +227,7 @@ be used with NFS-Ganesha to support PROXY based filesystems
 
 %if %{with utils}
 %package utils
-Summary: The NFS-GANESHA's util scripts
-Group: Applications/System
+Summary: The NFS-GANESHA util scripts
 %if ( 0%{?suse_version} )
 Requires:	dbus-1-python, python-gobject2, python-pyparsing
 %else
@@ -255,9 +256,7 @@ This package contains utility scripts for managing the NFS-GANESHA server
 
 %if %{with lttng}
 %package lttng
-Summary: The NFS-GANESHA's library for use with LTTng
-Group: Applications/System
-BuildRequires: lttng-ust-devel >= 2.3
+Summary: The NFS-GANESHA library for use with LTTng
 BuildRequires: lttng-tools-devel >= 2.3
 Requires: nfs-ganesha = %{version}-%{release}
 
@@ -268,12 +267,11 @@ to the ganesha.nfsd server, it makes it possible to trace using LTTng.
 
 %if %{with rados_recov}
 %package rados-grace
-Summary: The NFS-GANESHA's command for managing the RADOS grace database
-Group: Applications/System
+Summary: The NFS-GANESHA library for recovery backend
 BuildRequires: librados-devel >= 0.61
 Requires: nfs-ganesha = %{version}-%{release}
 
-%description rados-grace
+%description rados
 This package contains the ganesha-rados-grace tool for interacting with the
 database used by the rados_cluster recovery backend.
 %endif
@@ -284,8 +282,7 @@ database used by the rados_cluster recovery backend.
 # NULL
 %if %{with nullfs}
 %package nullfs
-Summary: The NFS-GANESHA's NULLFS Stackable FSAL
-Group: Applications/System
+Summary: The NFS-GANESHA NULLFS Stackable FSAL
 Requires: nfs-ganesha = %{version}-%{release}
 
 %description nullfs
@@ -296,8 +293,7 @@ be used with NFS-Ganesha. This is mostly a template for future (more sophisticat
 # MEM
 %if %{with mem}
 %package mem
-Summary: The NFS-GANESHA's Memory backed testing FSAL
-Group: Applications/System
+Summary: The NFS-GANESHA Memory backed testing FSAL
 Requires: nfs-ganesha = %{version}-%{release}
 
 %description mem
@@ -308,8 +304,7 @@ is used for speed and latency testing.
 # GPFS
 %if %{with gpfs}
 %package gpfs
-Summary: The NFS-GANESHA's GPFS FSAL
-Group: Applications/System
+Summary: The NFS-GANESHA GPFS FSAL
 Requires: nfs-ganesha = %{version}-%{release}
 
 %description gpfs
@@ -320,8 +315,7 @@ be used with NFS-Ganesha to support GPFS backend
 # CEPH
 %if %{with ceph}
 %package ceph
-Summary: The NFS-GANESHA's CephFS FSAL
-Group: Applications/System
+Summary: The NFS-GANESHA CephFS FSAL
 Requires:	nfs-ganesha = %{version}-%{release}
 BuildRequires:	libcephfs1-devel >= 10.2.7
 
@@ -333,8 +327,7 @@ be used with NFS-Ganesha to support CephFS
 # RGW
 %if %{with rgw}
 %package rgw
-Summary: The NFS-GANESHA's Ceph RGW FSAL
-Group: Applications/System
+Summary: The NFS-GANESHA Ceph RGW FSAL
 Requires:	nfs-ganesha = %{version}-%{release}
 BuildRequires:	librgw2-devel >= 12.2.1
 
@@ -346,8 +339,7 @@ be used with NFS-Ganesha to support Ceph RGW
 # XFS
 %if %{with xfs}
 %package xfs
-Summary: The NFS-GANESHA's XFS FSAL
-Group: Applications/System
+Summary: The NFS-GANESHA XFS FSAL
 Requires:	nfs-ganesha = %{version}-%{release}
 BuildRequires:	libattr-devel xfsprogs-devel
 
@@ -359,8 +351,7 @@ to support XFS correctly
 #LUSTRE
 %if %{with lustre}
 %package lustre
-Summary: The NFS-GANESHA's LUSTRE FSAL
-Group: Applications/System
+Summary: The NFS-GANESHA LUSTRE FSAL
 BuildRequires: libattr-devel
 BuildRequires: lustre-client
 Requires: nfs-ganesha = %{version}-%{release}
@@ -374,8 +365,7 @@ be used with NFS-Ganesha to support LUSTRE based filesystems
 # PANFS
 %if %{with panfs}
 %package panfs
-Summary: The NFS-GANESHA's PANFS FSAL
-Group: Applications/System
+Summary: The NFS-GANESHA PANFS FSAL
 Requires:	nfs-ganesha = %{version}-%{release}
 
 %description panfs
@@ -386,8 +376,7 @@ be used with NFS-Ganesha to support PANFS
 # GLUSTER
 %if %{with gluster}
 %package gluster
-Summary: The NFS-GANESHA's GLUSTER FSAL
-Group: Applications/System
+Summary: The NFS-GANESHA GLUSTER FSAL
 Requires:	nfs-ganesha = %{version}-%{release}
 BuildRequires:	glusterfs-api-devel >= 3.12.3
 BuildRequires:	libattr-devel, libacl-devel
@@ -397,11 +386,40 @@ This package contains a FSAL shared object to
 be used with NFS-Ganesha to support Gluster
 %endif
 
+# SELINUX
+%if ( 0%{?fedora} >= 30 || 0%{?rhel} >= 8 )
+%package selinux
+Summary: The NFS-GANESHA SELINUX targeted policy
+Group: Applications/System
+BuildArch:     noarch
+Requires:      nfs-ganesha = %{version}-%{release}
+BuildRequires:        selinux-policy-devel
+Requires(post):       selinux-policy-base >= 3.14.1
+Requires(post):       libselinux-utils
+Requires(post):       policycoreutils
+
+%description selinux
+This package contains an selinux policy for running ganesha.nfsd
+
+%post selinux
+%selinux_modules_install -s %{selinuxtype} %{_datadir}/selinux/packages/ganesha.pp.bz2
+
+%pre selinux
+%selinux_relabel_pre -s %{selinuxtype}
+
+%postun selinux
+if [ $1 -eq 0 ]; then
+    %selinux_modules_uninstall -s contrib ganesha
+fi
+
+%posttrans
+%selinux_relabel_post -s contrib
+%endif
+
 # NTIRPC (if built-in)
 %if ! %{with system_ntirpc}
 %package -n libntirpc
 Summary:	New Transport Independent RPC Library
-Group:		System Environment/Libraries
 License:	BSD
 Version:	@NTIRPC_VERSION_EMBED@
 Url:		https://github.com/nfs-ganesha/ntirpc
@@ -426,7 +444,6 @@ the following features not found in libtirpc:
 %package -n libntirpc-devel
 Summary:	Development headers for libntirpc
 Requires:	libntirpc = @NTIRPC_VERSION_EMBED@
-Group:		System Environment/Libraries
 License:	BSD
 Version:	@NTIRPC_VERSION_EMBED@
 Url:		https://github.com/nfs-ganesha/ntirpc
@@ -464,11 +481,20 @@ cd src && %cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo	\
 	-DUSE_9P=ON					\
 	-DDISTNAME_HAS_GIT_DATA=OFF			\
 	-DUSE_MAN_PAGE=%{use_man_page}			\
+	-DRPCBIND=%{use_rpcbind}			\
+	-D_MSPAC_SUPPORT=%{use_mspac_support}		\
+	-DSANITIZE_ADDRESS=%{use_sanitize_address}	\
 %if %{with jemalloc}
 	-DALLOCATOR=jemalloc
 %endif
 
 make %{?_smp_mflags} || make %{?_smp_mflags} || make
+
+%if ( 0%{?fedora} >= 30 || 0%{?rhel} >= 8 )
+make -C selinux -f /usr/share/selinux/devel/Makefile ganesha.pp
+ls selinux
+pushd selinux && bzip2 -9 ganesha.pp && popd
+%endif
 
 %install
 mkdir -p %{buildroot}%{_sysconfdir}/ganesha/
@@ -547,6 +573,12 @@ install -m 755 scripts/init.d/nfs-ganesha.gpfs		%{buildroot}%{_sysconfdir}/init.
 
 make DESTDIR=%{buildroot} install
 
+%if ( 0%{?fedora} >= 30 || 0%{?rhel} >= 8 )
+install -d %{buildroot}%{_datadir}/selinux/packages
+install -d -p %{buildroot}%{_datadir}/selinux/devel/include/contrib
+install -p -m 644 selinux/ganesha.if %{buildroot}%{_datadir}/selinux/devel/include/contrib
+install -m 0644 selinux/ganesha.pp.bz2 %{buildroot}%{_datadir}/selinux/packages
+%endif
 
 %post
 %if ( 0%{?suse_version} )
@@ -606,7 +638,9 @@ exit 0
 %dir %{_rundir}/ganesha
 %dir %{_libexecdir}/ganesha/
 %{_libexecdir}/ganesha/nfs-ganesha-config.sh
+%if %{with_systemd}
 %dir %attr(0775,ganesha,ganesha) %{_localstatedir}/log/ganesha
+%endif
 
 %if %{with_systemd}
 %{_unitdir}/nfs-ganesha.service
@@ -648,6 +682,7 @@ exit 0
 %if %{with man_page}
 %{_mandir}/*/ganesha-vfs-config.8.gz
 %endif
+
 
 %files proxy
 %{_libdir}/ganesha/libfsalproxy*
@@ -731,11 +766,17 @@ exit 0
 %endif
 %endif
 
+%if ( 0%{?fedora} >= 30 || 0%{?rhel} >= 8 )
+%files selinux
+%attr(0644,root,root) %{_datadir}/selinux/packages/ganesha.pp.bz2
+%attr(0644,root,root) %{_datadir}/selinux/devel/include/contrib/ganesha.if
+%endif
+
 %if ! %{with system_ntirpc}
 %files -n libntirpc
 %defattr(-,root,root,-)
 %{_libdir}/libntirpc.so.@NTIRPC_VERSION_EMBED@
-%{_libdir}/libntirpc.so.1.6
+%{_libdir}/libntirpc.so.1.7
 %{_libdir}/libntirpc.so
 %{!?_licensedir:%global license %%doc}
 %license libntirpc/COPYING
@@ -785,6 +826,9 @@ exit 0
 %endif
 
 %changelog
+* Mon Oct 29 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.7.1-1
+- nfs-ganesha 2.7.1 GA
+
 * Mon Sep 24 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.7.0-1
 - nfs-ganesha 2.7.0 GA
 
@@ -803,7 +847,7 @@ exit 0
 * Mon Jan 29 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.5-1
 - nfs-ganesha 2.5.5 GA
 
-* Tue Oct 24 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.3-1
+* Fri Oct 20 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.3-1
 - nfs-ganesha 2.5.3 GA
 
 * Thu Aug 10 2017 Niels de Vos <ndevos@redhat.com> 2.5.1.1-1
