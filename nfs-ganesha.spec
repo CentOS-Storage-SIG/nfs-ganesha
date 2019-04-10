@@ -40,13 +40,13 @@ Requires: openSUSE-release
 # %%bcond_with means you add a "--with" option, default = without this feature
 # %%bcond_without adds a"--without" so the feature is enabled by default
 
-%bcond_with nullfs
+%bcond_without nullfs
 %global use_fsal_null %{on_off_switch nullfs}
 
 %bcond_with mem
 %global use_fsal_mem %{on_off_switch mem}
 
-%bcond_with gpfs
+%bcond_without gpfs
 %global use_fsal_gpfs %{on_off_switch gpfs}
 
 %bcond_with xfs
@@ -55,10 +55,18 @@ Requires: openSUSE-release
 %bcond_with lustre
 %global use_fsal_lustre %{on_off_switch lustre}
 
+%ifnarch i686 armv7hl
 %bcond_with ceph
+#else
+%bcond_with ceph
+%endif
 %global use_fsal_ceph %{on_off_switch ceph}
 
+%ifnarch i686 armv7hl
 %bcond_with rgw
+%else
+%bcond_with rgw
+%endif
 %global use_fsal_rgw %{on_off_switch rgw}
 
 %bcond_without gluster
@@ -87,10 +95,18 @@ Requires: openSUSE-release
 %bcond_without man_page
 %global use_man_page %{on_off_switch man_page}
 
+%ifnarch i686 armv7hl
 %bcond_with rados_recov
+%else
+%bcond_with rados_recov
+%endif
 %global use_rados_recov %{on_off_switch rados_recov}
 
+%ifnarch i686 armv7hl
 %bcond_with rados_urls
+%else
+%bcond_with rados_urls
+%endif
 %global use_rados_urls %{on_off_switch rados_urls}
 
 %bcond_without rpcbind
@@ -111,13 +127,13 @@ Requires: openSUSE-release
 #%%global	dash_dev_version 2.6-rc5
 
 Name:		nfs-ganesha
-Version:	2.7.1
+Version:	2.7.2
 Release:	1%{?dev:%{dev}}%{?dist}
 Summary:	NFS-Ganesha is a NFS Server running in user space
 License:	LGPLv3+
 Url:		https://github.com/nfs-ganesha/nfs-ganesha/wiki
 
-Source0:	https://github.com/%{name}/%{name}/archive/V%{version}/%{name}-%{version}.tar.gz
+Source0:	https://github.com/%{name}/%{name}/archive/v%{version}/%{name}-%{version}.tar.gz
 
 BuildRequires:	cmake
 BuildRequires:	bison
@@ -126,6 +142,10 @@ BuildRequires:	pkgconfig
 BuildRequires:	krb5-devel
 %if ( 0%{?suse_version} >= 1330 )
 BuildRequires:  libnsl-devel
+%else
+%if ( 0%{?fedora} >= 28 || 0%{?rhel} >= 8 )
+BuildRequires:  libnsl2-devel
+%endif
 %endif
 %if ( 0%{?suse_version} )
 BuildRequires:	dbus-1-devel
@@ -142,15 +162,20 @@ BuildRequires:	libuuid-devel
 BuildRequires: libwbclient-devel
 %endif
 BuildRequires:	gcc-c++
-%if %{with system_ntirpc}
-BuildRequires:	libntirpc-devel = 1.7.1
+%if ( %{with_system_ntirpc} )
+BuildRequires:	libntirpc-devel >= 1.7.2
 %else
 Requires: libntirpc = @NTIRPC_VERSION_EMBED@
+%endif
+%if 0%{?rhel} && 0%{?rhel} <= 7
+# this should effectively be a no-op, as all Red Hat Enterprise Linux installs should have it
+# with selinux.
+Requires:	policycoreutils-python
 %endif
 %if ( 0%{?fedora} )
 # this should effectively be a no-op, as all Fedora installs should have it
 # with selinux.
-Requires:	policycoreutils-python
+Requires:	policycoreutils-python-utils
 %endif
 %if %{with sanitize_address}
 BuildRequires: libasan
@@ -163,6 +188,7 @@ Requires:	rpcbind
 Requires:	portmap
 %endif
 %endif
+
 %if %{with_nfsidmap}
 %if ( 0%{?suse_version} )
 BuildRequires:	nfsidmap-devel
@@ -172,6 +198,7 @@ BuildRequires:	libnfsidmap-devel
 %else
 BuildRequires:	nfs-utils-lib-devel
 %endif
+
 %if %{with rdma}
 BuildRequires:	libmooshika-devel >= 0.6-0
 %endif
@@ -229,7 +256,7 @@ be used with NFS-Ganesha to support PROXY based filesystems
 %package utils
 Summary: The NFS-GANESHA util scripts
 %if ( 0%{?suse_version} )
-Requires:	dbus-1-python, python-gobject2, python-pyparsing
+Requires:	dbus-1-python, python-gobject2 python-pyparsing
 %else
 Requires:	dbus-python, pygobject2, pyparsing
 %endif
@@ -243,7 +270,7 @@ Requires:	PyQt4
 %endif
 %endif
 %if ( 0%{?suse_version} )
-BuildRequires:	python-devel
+BuildRequires:	python2-devel
 Requires: nfs-ganesha = %{version}-%{release}, python
 %else
 BuildRequires:	python2-devel
@@ -257,7 +284,8 @@ This package contains utility scripts for managing the NFS-GANESHA server
 %if %{with lttng}
 %package lttng
 Summary: The NFS-GANESHA library for use with LTTng
-BuildRequires: lttng-tools-devel >= 2.3
+BuildRequires:	lttng-ust-devel >= 2.3
+BuildRequires:	lttng-tools-devel >= 2.3
 Requires: nfs-ganesha = %{version}-%{release}
 
 %description lttng
@@ -267,11 +295,11 @@ to the ganesha.nfsd server, it makes it possible to trace using LTTng.
 
 %if %{with rados_recov}
 %package rados-grace
-Summary: The NFS-GANESHA library for recovery backend
-BuildRequires: librados-devel >= 0.61
+Summary: The NFS-GANESHA command for managing the RADOS grace database
+BuildRequires: librados-devel >= 14.0.0
 Requires: nfs-ganesha = %{version}-%{release}
 
-%description rados
+%description rados-grace
 This package contains the ganesha-rados-grace tool for interacting with the
 database used by the rados_cluster recovery backend.
 %endif
@@ -317,7 +345,7 @@ be used with NFS-Ganesha to support GPFS backend
 %package ceph
 Summary: The NFS-GANESHA CephFS FSAL
 Requires:	nfs-ganesha = %{version}-%{release}
-BuildRequires:	libcephfs1-devel >= 10.2.7
+BuildRequires:	libcephfs2-devel >= 14.0.0
 
 %description ceph
 This package contains a FSAL shared object to
@@ -329,7 +357,7 @@ be used with NFS-Ganesha to support CephFS
 %package rgw
 Summary: The NFS-GANESHA Ceph RGW FSAL
 Requires:	nfs-ganesha = %{version}-%{release}
-BuildRequires:	librgw2-devel >= 12.2.1
+BuildRequires:	librgw2-devel >= 14.0.0
 
 %description rgw
 This package contains a FSAL shared object to
@@ -387,34 +415,32 @@ be used with NFS-Ganesha to support Gluster
 %endif
 
 # SELINUX
-%if ( 0%{?fedora} >= 30 || 0%{?rhel} >= 8 )
+%if ( 0%{?fedora} >= 29 || 0%{?rhel} >= 8 )
 %package selinux
 Summary: The NFS-GANESHA SELINUX targeted policy
-Group: Applications/System
 BuildArch:     noarch
 Requires:      nfs-ganesha = %{version}-%{release}
 BuildRequires:        selinux-policy-devel
-Requires(post):       selinux-policy-base >= 3.14.1
-Requires(post):       libselinux-utils
-Requires(post):       policycoreutils
+%{?selinux_requires}
 
 %description selinux
 This package contains an selinux policy for running ganesha.nfsd
 
 %post selinux
-%selinux_modules_install -s %{selinuxtype} %{_datadir}/selinux/packages/ganesha.pp.bz2
+%selinux_modules_install %{_datadir}/selinux/packages/ganesha.pp.bz2
 
 %pre selinux
-%selinux_relabel_pre -s %{selinuxtype}
+%selinux_relabel_pre
 
 %postun selinux
 if [ $1 -eq 0 ]; then
-    %selinux_modules_uninstall -s contrib ganesha
+    %selinux_modules_uninstall ganesha
 fi
 
 %posttrans
-%selinux_relabel_post -s contrib
+%selinux_relabel_post
 %endif
+
 
 # NTIRPC (if built-in)
 %if ! %{with system_ntirpc}
@@ -458,7 +484,6 @@ Development headers and auxiliary files for developing with %{name}.
 %build
 cd src && %cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo	\
 	-DBUILD_CONFIG=rpmbuild				\
-	-DDSANITIZE_ADDRESS=OFF				\
 	-DUSE_FSAL_NULL=%{use_fsal_null}		\
 	-DUSE_FSAL_MEM=%{use_fsal_mem}			\
 	-DUSE_FSAL_XFS=%{use_fsal_xfs}			\
@@ -492,7 +517,6 @@ make %{?_smp_mflags} || make %{?_smp_mflags} || make
 
 %if ( 0%{?fedora} >= 30 || 0%{?rhel} >= 8 )
 make -C selinux -f /usr/share/selinux/devel/Makefile ganesha.pp
-ls selinux
 pushd selinux && bzip2 -9 ganesha.pp && popd
 %endif
 
@@ -574,10 +598,10 @@ install -m 755 scripts/init.d/nfs-ganesha.gpfs		%{buildroot}%{_sysconfdir}/init.
 make DESTDIR=%{buildroot} install
 
 %if ( 0%{?fedora} >= 30 || 0%{?rhel} >= 8 )
-install -d %{buildroot}%{_datadir}/selinux/packages
-install -d -p %{buildroot}%{_datadir}/selinux/devel/include/contrib
-install -p -m 644 selinux/ganesha.if %{buildroot}%{_datadir}/selinux/devel/include/contrib
-install -m 0644 selinux/ganesha.pp.bz2 %{buildroot}%{_datadir}/selinux/packages
+install -d %{buildroot}%{_selinux_store_path}/packages
+install -d -p %{buildroot}%{_selinux_store_path}/devel/include/contrib
+install -p -m 644 selinux/ganesha.if %{buildroot}%{_selinux_store_path}/devel/include/contrib
+install -m 0644 selinux/ganesha.pp.bz2 %{buildroot}%{_selinux_store_path}/packages
 %endif
 
 %post
@@ -638,9 +662,7 @@ exit 0
 %dir %{_rundir}/ganesha
 %dir %{_libexecdir}/ganesha/
 %{_libexecdir}/ganesha/nfs-ganesha-config.sh
-%if %{with_systemd}
 %dir %attr(0775,ganesha,ganesha) %{_localstatedir}/log/ganesha
-%endif
 
 %if %{with_systemd}
 %{_unitdir}/nfs-ganesha.service
@@ -683,7 +705,6 @@ exit 0
 %{_mandir}/*/ganesha-vfs-config.8.gz
 %endif
 
-
 %files proxy
 %{_libdir}/ganesha/libfsalproxy*
 %if %{with man_page}
@@ -707,7 +728,6 @@ exit 0
 
 %if %{with mem}
 %files mem
-%defattr(-,root,root,-)
 %{_libdir}/ganesha/libfsalmem*
 %endif
 
@@ -748,7 +768,6 @@ exit 0
 
 %if %{with rgw}
 %files rgw
-%defattr(-,root,root,-)
 %{_libdir}/ganesha/libfsalrgw*
 %config(noreplace) %{_sysconfdir}/ganesha/rgw.conf
 %config(noreplace) %{_sysconfdir}/ganesha/rgw_bucket.conf
@@ -768,15 +787,14 @@ exit 0
 
 %if ( 0%{?fedora} >= 30 || 0%{?rhel} >= 8 )
 %files selinux
-%attr(0644,root,root) %{_datadir}/selinux/packages/ganesha.pp.bz2
-%attr(0644,root,root) %{_datadir}/selinux/devel/include/contrib/ganesha.if
+%attr(0644,root,root) %{_selinux_store_path}/packages/ganesha.pp.bz2
+%attr(0644,root,root) %{_selinux_store_path}/devel/include/contrib/ganesha.if
 %endif
 
 %if ! %{with system_ntirpc}
 %files -n libntirpc
-%defattr(-,root,root,-)
 %{_libdir}/libntirpc.so.@NTIRPC_VERSION_EMBED@
-%{_libdir}/libntirpc.so.1.7
+%{_libdir}/libntirpc.so.1.6
 %{_libdir}/libntirpc.so
 %{!?_licensedir:%global license %%doc}
 %license libntirpc/COPYING
@@ -800,8 +818,8 @@ exit 0
 %if %{with utils}
 %files utils
 %if ( 0%{?suse_version} )
-%{python_sitelib}/Ganesha/*
-%{python_sitelib}/ganeshactl-*-info
+%{python2_sitelib}/Ganesha/*
+%{python2_sitelib}/ganeshactl-*-info
 %else
 %{python2_sitelib}/Ganesha/*
 %{python2_sitelib}/ganeshactl-*-info
@@ -826,217 +844,331 @@ exit 0
 %endif
 
 %changelog
-* Mon Oct 29 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.7.1-1
+* Wed Feb 27 2019 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.7.2-1
+- nfs-ganesha 2.7.2 GA
+
+* Thu Feb 21 2019 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.7.1-1
+- rebuild for f31/rawhide
+-  add libnsl2-devel on rhel8
+-  eliminate redundant cmake -DDSANITIZE_ADDRESS=OFF
+
+* Fri Feb 01 2019 Fedora Release Engineering <releng@fedoraproject.org> - 2.7.1-5
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_30_Mass_Rebuild
+
+* Tue Dec 18 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.7.1-4
+- nfs-ganesha 2.7.1, fix selinux
+
+* Fri Dec 7 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.7.1-3
+- nfs-ganesha 2.7.1, rebuild w/ ceph-14
+
+* Tue Oct 16 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.7.1-2
+- nfs-ganesha 2.7.1, rebuild w/ libntirpc-1.7.1-1
+
+* Fri Oct 12 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.7.1-1
 - nfs-ganesha 2.7.1 GA
 
-* Mon Sep 24 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.7.0-1
+* Thu Sep 20 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.7.0-3
+- nfs-ganesha 2.7.0, obsolete xfs, enable lttng
+
+* Thu Sep 20 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.7.0-2
+- nfs-ganesha 2.7.0, obsolete xfs, enable lttng
+
+* Mon Sep 17 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.7.0-1
 - nfs-ganesha 2.7.0 GA
 
-* Thu Aug 23 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.6.3-1
+* Wed Aug 22 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.6.3-1
 - nfs-ganesha 2.6.3 GA
 
-* Thu May 10 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.6.2-1
+* Fri Aug 10 2018 Petr Lautrbach <plautrba@redhat.com> - 2.6.2-5
+- require the correct package with /usr/sbin/semanage
+
+* Tue Jul 17 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.6.2-4
+- disable utils, python
+
+* Fri Jul 13 2018 Fedora Release Engineering <releng@fedoraproject.org> - 2.6.2-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_29_Mass_Rebuild
+
+* Tue Jul 3 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 
+- defattr
+
+* Wed May 16 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.6.2-2
+- nfs-ganesha 2.6.2 w/ ceph and rgw FSALs
+
+* Thu May 10 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.6.2-1
 - nfs-ganesha 2.6.2 GA
 
-* Wed Mar 21 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.6.1-1
+* Tue Mar 20 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.6.1-1
 - nfs-ganesha 2.6.1 GA
 
-* Tue Feb 20 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.6.0-1
+* Fri Mar 2 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.6.0-2
+- nfs-ganesha 2.6.0 GA, rebuild (relink) with libntirpc-1.6.1
+
+* Tue Feb 20 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.6.0-1
 - nfs-ganesha 2.6.0 GA
 
-* Mon Jan 29 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.5-1
-- nfs-ganesha 2.5.5 GA
+* Tue Feb 20 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.6.0-0.5rc5
+- nfs-ganesha 2.6.0 RC5, rebuild with libntirpc-1.6.1
 
-* Fri Oct 20 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.3-1
+* Fri Feb 9 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.6.0-0.4rc5
+- nfs-ganesha 2.6.0 RC5
+
+* Thu Feb 08 2018 Fedora Release Engineering <releng@fedoraproject.org> - 2.6.0-0.3rc3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_28_Mass_Rebuild
+
+* Fri Jan 19 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.6.0-0.1rc3
+- nfs-ganesha 2.6.0 RC3
+
+* Wed Jan 17 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.6.0-0.1rc2
+- nfs-ganesha 2.6.0 RC2
+
+* Thu Jan 11 2018 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.4-2
+- rebuild with libnfsidmap (libnfsidmap.so.1)
+
+* Mon Nov 13 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.4-1
+- nfs-ganesha 2.5.4 GA
+
+* Fri Oct 20 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.3-3
+- nfs-ganesha 2.5.3, quiet semanage
+
+* Fri Oct 20 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.3-2
+- nfs-ganesha 2.5.3, fix semanage in %%post
+
+* Tue Oct 10 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.3-1
 - nfs-ganesha 2.5.3 GA
 
-* Thu Aug 10 2017 Niels de Vos <ndevos@redhat.com> 2.5.1.1-1
-- nfs-ganesha 2.5.1.1 GA
+* Wed Sep 27 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.2-6
+- /var/log/ganesha -> ganesha_var_log_t
+- see https://github.com/nfs-ganesha/nfs-ganesha/issues/212
 
-* Mon Jun 26 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.0-1
+* Fri Sep 22 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.2-5
+- /var/log/ganesha -> ganesha_var_log_t
+- see https://github.com/nfs-ganesha/nfs-ganesha/issues/212
+
+* Fri Sep 22 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.2-4
+- /var/log/ganesha owner ganesha.ganesha -> ganesha.root 
+- see https://github.com/nfs-ganesha/nfs-ganesha/issues/212
+
+* Fri Aug 25 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.2-3
+- no rdma on arm(v7hl), FSAL_RGW, FSAL_CEPH; with ceph-12-1.4-5
+
+* Thu Aug 24 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.2-2
+- no rdma on arm(v7hl), thus no rgw in ceph, hence no FSAL_RGW
+
+* Thu Aug 24 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.2-1
+- nfs-ganesha 2.5.2 GA
+
+* Fri Aug 18 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.1.1-2
+- /var/run -> /run
+
+* Wed Aug 2 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.1.1-1
+- nfs-ganesha 2.5.1.1 GA
+- enable ppc64, enable FSAL_GPFS
+
+* Fri Jul 21 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.1-1
+- nfs-ganesha 2.5.1 GA
+
+* Wed Jul 19 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.0-4
+- nfs-ganesha 2.5.0 rebuild with libntirpc-1.5.3
+
+* Tue Jun 27 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.0-3
+- nfs-ganesha 2.5.0 rebuild with ceph
+
+* Sun Jun 25 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.0-2
+- nfs-ganesha 2.5.0 rebuild with userspace-rcu-0.10.0 (liburcu-bp.so.6)
+
+* Mon Jun 12 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.0-1
 - nfs-ganesha 2.5.0 GA
 
-* Mon May 22 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.0-0.7rc7
-- nfs-ganesha 2.5rc7
+* Wed Jun 7 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.0-0.10final
+- nfs-ganesha 2.5 final
 
-* Sun May 14 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.0-0.6rc6
-- nfs-ganesha 2.5rc6
+* Tue Jun 6 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.0-0.9rc9
+- nfs-ganesha 2.5 rc9
 
-* Thu May 11 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.0-0.5rc5
-- nfs-ganesha 2.5rc5
+* Tue May 30 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.0-0.8rc8
+- nfs-ganesha 2.5 rc8, with libntirpc-1.5.2
 
-* Wed May 10 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.0-0.4rc4
+* Mon May 22 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.0-0.7rc7
+- nfs-ganesha 2.5 rc7
+
+* Sun May 14 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.0-0.6rc6
+- nfs-ganesha 2.5 rc6
+
+* Thu May 11 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.0-0.5rc5
+- nfs-ganesha 2.5 rc5
+
+* Wed May 10 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.0-0.4rc4
 - rebuild with libntirpc-1.5.1
 
-* Mon May 8 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.0-0.3rc4
-- nfs-ganesha 2.5rc4
+* Mon May 8 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.0-0.3rc4
+- nfs-ganesha 2.5 rc4
 
-* Mon May 1 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.0-0.2rc3
-- nfs-ganesha 2.5rc3
+* Mon May 1 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.0-0.2rc3
+- nfs-ganesha 2.5 rc3
 
-* Mon Apr 24 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.5.0-0.1rc2
-- nfs-ganesha 2.5rc2
+* Mon Apr 24 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.5.0-0.1rc2
+- nfs-ganesha 2.5 rc2
 
-* Wed Apr 19 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.5-2
+* Wed Apr 19 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.5-2
 - nfs-ganesha 2.4.5 GA, w/ RGW again (cephfs-10.2.7)
 
-* Wed Apr 5 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.5-1
+* Wed Apr 5 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.5-1
 - nfs-ganesha 2.4.5 GA
 
-* Tue Mar 21 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.4-1
+* Tue Mar 21 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.4-1
 - nfs-ganesha 2.4.4 GA
 
-* Thu Feb 9 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.3-2
+* Thu Feb 9 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.3-2
 - nfs-ganesha 2.4.3 GA, reenable FSAL_CEPH and FSAL_RGW
 
-* Tue Feb 7 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.3-1
+* Tue Feb 7 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.3-1
 - nfs-ganesha 2.4.3 GA
 
-* Mon Jan 23 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.2-1
+* Mon Jan 23 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.2-1
 - nfs-ganesha 2.4.2 GA
 
 * Wed Jan 18 2017 Kaleb S. KEITHLEY <kkeithle at redhat.com>
 - python2 (vs. python3) cleanup
 
-* Fri Dec 23 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.1-2
+* Fri Dec 23 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.1-2
 - nfs-ganesha 2.4.1 w/ FSAL_RGW
 
-* Mon Oct 31 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.1-1
+* Mon Oct 31 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.1-1
 - nfs-ganesha 2.4.1 GA
 
-* Fri Oct 28 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-2
+* Fri Oct 28 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-2
 - rebuild with libntirpc-1.4.3
 
-* Thu Sep 22 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-1
+* Thu Sep 22 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-1
 - nfs-ganesha 2.4.0 GA
 
-* Wed Sep 21 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.22rc6
+* Wed Sep 21 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.22rc6
 - 2.4-rc6
 
-* Fri Sep 16 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.21rc5
+* Fri Sep 16 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.21rc5
 - 2.4-rc5
 
-* Sun Sep 11 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.20rc4
+* Sun Sep 11 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.20rc4
 - 2.4-rc4
 
-* Wed Sep 7 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.19rc3
+* Wed Sep 7 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.19rc3
 - 2.4-rc3
 
-* Tue Sep 6 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.18rc2
+* Tue Sep 6 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.18rc2
 - 2.4-rc2
 
-* Mon Aug 29 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.17rc1
+* Mon Aug 29 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.17rc1
 - 2.4-rc1
 
-* Tue Aug 16 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.16dev29
+* Tue Aug 16 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.16dev29
 - 2.4-dev-29, jemalloc off by default (conflicts with glusterfs-api)
 
-* Mon Aug 15 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.15dev29
+* Mon Aug 15 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.15dev29
 - 2.4-dev-29
 
-* Mon Aug 1 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.14dev27
+* Mon Aug 1 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.14dev27
 - 2.4-dev-27
 
-* Mon Jul 25 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.13dev26
+* Mon Jul 25 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.13dev26
 - 2.4-dev-26
 
-* Wed Jul 20 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.12dev25
+* Wed Jul 20 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.12dev25
 - 2.4-dev-25 (revised 32-bit)
 
-* Tue Jul 19 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.11dev25
+* Tue Jul 19 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.11dev25
 - 2.4-dev-25
 
 * Tue Jul 19 2016 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.4.0-0.10dev23
 - https://fedoraproject.org/wiki/Changes/Automatic_Provides_for_Python_RPM_Packages
 
-* Tue Jul 5 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.9dev23
+* Tue Jul 5 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.9dev23
 - 2.4-dev-23
 
-* Fri Jun 24 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.8dev21
+* Fri Jun 24 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.8dev21
 - 2.4-dev-21 w/ FSAL_RGW
 
-* Mon Jun 20 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.7dev21
+* Mon Jun 20 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.7dev21
 - 2.4-dev-21
 
-* Mon May 30 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.6dev19
+* Mon May 30 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.6dev19
 - 2.4-dev-19
 
-* Tue May 10 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.5dev17
+* Tue May 10 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.5dev17
 - 2.4-dev-17
 
-* Fri Apr 8 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.4dev14
+* Fri Apr 8 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.4dev14
 - 2.4-dev-14
 
-* Thu Mar 31 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.3dev12
+* Thu Mar 31 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.3dev12
 - 2.4-dev-12
 
-* Mon Feb 29 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.2dev10
+* Mon Feb 29 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.2dev10
 - 2.4-dev-10
 
-* Fri Feb 5 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.4.0-0.1dev7
+* Fri Feb 5 2016 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.4.0-0.1dev7
 - 2.4-dev-7
 
 * Thu Feb 04 2016 Fedora Release Engineering <releng@fedoraproject.org> - 2.3.0-3
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_24_Mass_Rebuild
 
-* Tue Nov 17 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-2
+* Tue Nov 17 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-2
 - Requires: rpcbind or portmap
 
-* Wed Oct 28 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-1
+* Wed Oct 28 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-1
 - 2.3.0 GA
 
-* Tue Oct 27 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-0.15rc8
+* Tue Oct 27 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-0.15rc8
 - 2.3.0 RC8, rebuild with libntirpc-1.3.1, again
 
-* Mon Oct 26 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-0.14rc8
+* Mon Oct 26 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-0.14rc8
 - 2.3.0 RC8, rebuild with libntirpc-1.3.1
 
-* Sun Oct 25 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-0.13rc8
+* Sun Oct 25 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-0.13rc8
 - 2.3.0 RC8
 
-* Thu Oct 22 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-0.12rc7
+* Thu Oct 22 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-0.12rc7
 - 2.3.0 RC7 (N.B. 2.3.0-0.11rc6 was really rc7)
 
-* Mon Oct 19 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-0.11rc7
+* Mon Oct 19 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-0.11rc7
 - 2.3.0 RC7
 
-* Mon Oct 12 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-0.10rc6
+* Mon Oct 12 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-0.10rc6
 - 2.3.0 RC6
 
-* Thu Oct 8 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-0.9rc5
+* Thu Oct 8 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-0.9rc5
 - 2.3.0 RC5 w/ CMakeLists.txt.patch and config-h.in.cmake.patch
 
-* Wed Oct 7 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-0.8rc5
+* Wed Oct 7 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-0.8rc5
 - 2.3.0 RC5 mount-9p w/o Requires: nfs-ganesha
 
-* Tue Oct 6 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-0.7rc5
+* Tue Oct 6 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-0.7rc5
 - 2.3.0 RC5 revised scripts/ganeshactl/CMakeLists.txt.patch
 
-* Mon Oct 5 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-0.6rc5
+* Mon Oct 5 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-0.6rc5
 - 2.3.0 RC5
 
-* Mon Sep 28 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-0.5rc4
+* Mon Sep 28 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-0.5rc4
 - 2.3.0 RC4
 
-* Fri Sep 18 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-0.4rc3
+* Fri Sep 18 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-0.4rc3
 - 2.3.0 RC3
 
-* Fri Sep 11 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-0.3rc2
+* Fri Sep 11 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-0.3rc2
 - 2.3.0 RC2
 
-* Fri Sep 11 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-0.2rc1
+* Fri Sep 11 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-0.2rc1
 - 2.3.0 RC1, revised .../SAL/nfs4_state_id.c.patch
 
-* Wed Sep 9 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.3.0-0.1rc1
+* Wed Sep 9 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.3.0-0.1rc1
 - 2.3.0 RC1
 
-* Sat Aug 29 2015 Niels de Vos <ndevos@redhat.com> 2.2.0-6
+* Sat Aug 29 2015 Niels de Vos <ndevos@redhat.com> - 2.2.0-6
 - Rebuilt for jemalloc SONAME bump
 
-* Fri Jul 17 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-5
+* Fri Jul 17 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-5
 - BuildRequires: libntirprc on base
 
-* Fri Jul 17 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-4
+* Fri Jul 17 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-4
 - link with unbundled, shared libntirpc
 
 * Wed Jun 17 2015 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.2.0-3
@@ -1045,76 +1177,76 @@ exit 0
 * Wed May 27 2015 Niels de Vos <ndevos@redhat.com>
 - improve readability and allow "rpmbuild --with .." options again
 
-* Fri May 15 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-2
+* Fri May 15 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-2
 - %%license, build with glusterfs-3.7.0 GA
 
-* Tue Apr 21 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-1
+* Tue Apr 21 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-1
 - 2.2.0 GA
 
-* Mon Apr 20 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-0.13rc-final
+* Mon Apr 20 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-0.13rc-final
 - 2.2.0-0.13rc-final
 
-* Mon Apr 13 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-0.12rc8
+* Mon Apr 13 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-0.12rc8
 - 2.2.0-0.12rc8
 
-* Mon Apr 6 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-0.11rc7
+* Mon Apr 6 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-0.11rc7
 - 2.2.0-0.11rc7
 
-* Thu Apr 2 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-0.10rc6
+* Thu Apr 2 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-0.10rc6
 - 2.2.0-0.10rc6, with unbundled libntirpc
 
-* Mon Mar 30 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-0.9rc6
+* Mon Mar 30 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-0.9rc6
 - 2.2.0-0.9rc6
 
-* Sun Mar 22 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-0.8rc5
+* Sun Mar 22 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-0.8rc5
 - 2.2.0-0.8rc5
 
-* Tue Mar 17 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-0.7rc4
+* Tue Mar 17 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-0.7rc4
 - ntirpc-1.2.1.tar.gz
 
-* Tue Mar 17 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-0.6rc4
+* Tue Mar 17 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-0.6rc4
 - updated ntirpc-1.2.0.tar.gz
 
-* Sun Mar 15 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-0.5rc4
+* Sun Mar 15 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-0.5rc4
 - 2.2.0-0.5rc4
 
-* Mon Feb 23 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-0.4rc3
+* Mon Feb 23 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-0.4rc3
 - 2.2.0-0.4rc3
 
-* Mon Feb 16 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-0.3rc2
+* Mon Feb 16 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-0.3rc2
 - subpackage Requires: nfs-ganesha = %%{version}-%%{release}
 
-* Mon Feb 16 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-0.2rc2
+* Mon Feb 16 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-0.2rc2
 - 2.2.0-0.2rc2
 
-* Fri Feb 13 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.2.0-0.1rc1
+* Fri Feb 13 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.2.0-0.1rc1
 - 2.2.0-0.1rc1
 - nfs-ganesha.spec based on upstream
 
-* Thu Feb 12 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.1.0-14
+* Thu Feb 12 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.1.0-14
 - Fedora 23/rawhide build fixes
 - Ceph restored in EPEL
 
-* Mon Jan 19 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.1.0-13
+* Mon Jan 19 2015 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.1.0-13
 - Ceph retired from EPEL 7
 
-* Thu Nov 6 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.1.0-12
+* Thu Nov 6 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.1.0-12
 - rebuild after libnfsidmap symbol version revert
 
-* Wed Oct 29 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.1.0-11
+* Wed Oct 29 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.1.0-11
 - PyQt -> PyQt4 typo
 
-* Mon Oct 27 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.1.0-10
+* Mon Oct 27 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.1.0-10
 - use upstream init.d script
 
-* Thu Oct 2 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.1.0-9
+* Thu Oct 2 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.1.0-9
 - restore exclusion of gluster gfapi on rhel
 
-* Thu Oct 2 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.1.0-8
+* Thu Oct 2 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.1.0-8
 - install /etc/dbus-1/system.d/org.ganesha.nfsd.conf
 - build and install admin tools
 
-* Mon Sep 29 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.1.0-7
+* Mon Sep 29 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.1.0-7
 - install /etc/sysconfig/nfs-ganesha file
 
 * Fri Aug 29 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com>
@@ -1123,28 +1255,28 @@ exit 0
 * Sun Aug 17 2014 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.1.0-6
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_21_22_Mass_Rebuild
 
-* Thu Jul 24 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.1.0-5
+* Thu Jul 24 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.1.0-5
 - use upstream nfs-ganesha.service
 
-* Fri Jul 11 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.1.0-4
+* Fri Jul 11 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.1.0-4
 - keep fsal .so files, implementation now uses them
 
-* Tue Jul 1 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.1.0-3
+* Tue Jul 1 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.1.0-3
 - static libuid2grp
 
-* Tue Jul 1 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.1.0-2
+* Tue Jul 1 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.1.0-2
 - add libuid2grp.so
 
-* Mon Jun 30 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.1.0-1
+* Mon Jun 30 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.1.0-1
 - nfs-ganesha-2.1.0 GA
 
 * Sat Jun 07 2014 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.0.0-10
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_21_Mass_Rebuild
 
-* Mon Jun 2 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.0.0-9
+* Mon Jun 2 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.0.0-9
 - Ceph FSAL enabled with ceph-0.80
 
-* Wed May 21 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.0.0-8
+* Wed May 21 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.0.0-8
 - getdents()->getdents64(), struct dirent -> struct dirent64
 
 * Sat May 10 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com>
@@ -1153,7 +1285,7 @@ exit 0
 * Sat May 10 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com>
 - exclude libfsalgluster correctly
 
-* Fri May 9 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.0.0-7
+* Fri May 9 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.0.0-7
 - Ceph FSAL, in a subpackage, (but requires ceph >= 0.78)
 
 * Mon Mar 31 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com>
@@ -1163,26 +1295,26 @@ exit 0
 * Tue Jan 21 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com>
 - sussed out github archive so as to allow correct Source0
 
-* Fri Jan 17 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.0.0-6
+* Fri Jan 17 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.0.0-6
 - EPEL7 and xfsprogs
 
-* Fri Jan 17 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.0.0-5
+* Fri Jan 17 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.0.0-5
 - EPEL7
 
-* Mon Jan 6 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.0.0-4
+* Mon Jan 6 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.0.0-4
 - with glusterfs-api(-devel) >= 3.4.2
 
-* Sat Jan 4 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.0.0-3
+* Sat Jan 4 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.0.0-3
 - with glusterfs-api
 
-* Thu Jan 2 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.0.0-2
+* Thu Jan 2 2014 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.0.0-2
 - Build on RHEL6. Add sample init.d script
 
 * Wed Dec 11 2013 Jim Lieb <lieb@sea-troll.net> - 2.0.0-1
 - Update to V2.0.0 release
 
-* Mon Nov 25 2013 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.0.0-0.2.rcfinal
+* Mon Nov 25 2013 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.0.0-0.2.rcfinal
 - update to RC-final
 
-* Fri Nov 22 2013 Kaleb S. KEITHLEY <kkeithle at redhat.com> 2.0.0-0.1.rc5
+* Fri Nov 22 2013 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.0.0-0.1.rc5
 - Initial commit
