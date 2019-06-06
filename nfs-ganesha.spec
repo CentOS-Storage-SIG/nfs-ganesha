@@ -127,13 +127,14 @@ Requires: openSUSE-release
 #%%global	dash_dev_version 2.6-rc5
 
 Name:		nfs-ganesha
-Version:	2.7.3
+Version:	2.7.4
 Release:	1%{?dev:%{dev}}%{?dist}
 Summary:	NFS-Ganesha is a NFS Server running in user space
 License:	LGPLv3+
 Url:		https://github.com/nfs-ganesha/nfs-ganesha/wiki
 
 Source0:	https://github.com/%{name}/%{name}/archive/v%{version}/%{name}-%{version}.tar.gz
+Patch1:		0001_src_scripts_ganeshactl_CMakeLists.txt.patch
 
 BuildRequires:	cmake
 BuildRequires:	bison
@@ -163,7 +164,7 @@ BuildRequires: libwbclient-devel
 %endif
 BuildRequires:	gcc-c++
 %if ( %{with_system_ntirpc} )
-BuildRequires:	libntirpc-devel >= 1.7.2
+BuildRequires:	libntirpc-devel >= 1.7.4
 %else
 Requires: libntirpc = @NTIRPC_VERSION_EMBED@
 %endif
@@ -844,6 +845,9 @@ exit 0
 %endif
 
 %changelog
+* Wed Jun 5 2019 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.7.4-1
+- nfs-ganesha 2.7.4 GA
+
 * Wed Apr 10 2019 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.7.3-1
 - nfs-ganesha 2.7.3 GA
 

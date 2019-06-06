@@ -1,0 +1,10 @@
+--- nfs-ganesha-2.7.4/src/scripts/ganeshactl/CMakeLists.txt.orig	2019-06-05 17:58:40.943933814 -0400
++++ nfs-ganesha-2.7.4/src/scripts/ganeshactl/CMakeLists.txt	2019-06-05 17:59:26.653933814 -0400
+@@ -1,6 +1,6 @@
+ # Building and packaging DBUS scripts for ganesha
+ 
+-find_program(PYTHON NAMES "python" "python3")
++find_program(PYTHON NAMES "python2")
+ 
+ # PyQT based class modules
+ set(GANESHA_BASE_SRCS
