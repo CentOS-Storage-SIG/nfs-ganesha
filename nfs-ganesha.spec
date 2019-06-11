@@ -56,14 +56,14 @@ Requires: openSUSE-release
 %global use_fsal_lustre %{on_off_switch lustre}
 
 %ifnarch i686 armv7hl
-%bcond_with ceph
+%bcond_without ceph
 #else
 %bcond_with ceph
 %endif
 %global use_fsal_ceph %{on_off_switch ceph}
 
 %ifnarch i686 armv7hl
-%bcond_with rgw
+%bcond_without rgw
 %else
 %bcond_with rgw
 %endif
@@ -77,6 +77,9 @@ Requires: openSUSE-release
 
 %bcond_with rdma
 %global use_rdma %{on_off_switch rdma}
+
+%bcond_with 9P
+%global use_9P %{on_off_switch 9P}
 
 %bcond_with jemalloc
 
@@ -96,14 +99,14 @@ Requires: openSUSE-release
 %global use_man_page %{on_off_switch man_page}
 
 %ifnarch i686 armv7hl
-%bcond_with rados_recov
+%bcond_without rados_recov
 %else
 %bcond_with rados_recov
 %endif
 %global use_rados_recov %{on_off_switch rados_recov}
 
 %ifnarch i686 armv7hl
-%bcond_with rados_urls
+%bcond_without rados_urls
 %else
 %bcond_with rados_urls
 %endif
@@ -112,7 +115,7 @@ Requires: openSUSE-release
 %bcond_without rpcbind
 %global use_rpcbind %{on_off_switch rpcbind}
 
-%bcond_with mspac_support
+%bcond_without mspac_support
 %global use_mspac_support %{on_off_switch mspac_support}
 
 %bcond_with sanitize_address
@@ -123,23 +126,24 @@ Requires: openSUSE-release
 %endif
 
 %global dev_version %{lua: s = string.gsub('@GANESHA_EXTRA_VERSION@', '^%-', ''); s2 = string.gsub(s, '%-', '.'); print((s2 ~= nil and s2 ~= '') and s2 or "0.1") }
-#%%global	dev rc5
-#%%global	dash_dev_version 2.6-rc5
+#%%global	dev rc1
+#%%global	dash_dev_version 2.8-rc1
 
 Name:		nfs-ganesha
-Version:	2.7.4
+Version:	2.8.0
 Release:	1%{?dev:%{dev}}%{?dist}
 Summary:	NFS-Ganesha is a NFS Server running in user space
 License:	LGPLv3+
 Url:		https://github.com/nfs-ganesha/nfs-ganesha/wiki
 
 Source0:	https://github.com/%{name}/%{name}/archive/v%{version}/%{name}-%{version}.tar.gz
-Patch1:		0001_src_scripts_ganeshactl_CMakeLists.txt.patch
+Patch1:		0001-nfs-ganesha_2801.patch
 
 BuildRequires:	cmake
 BuildRequires:	bison
 BuildRequires:	flex
 BuildRequires:	pkgconfig
+BuildRequires:	userspace-rcu-devel
 BuildRequires:	krb5-devel
 %if ( 0%{?suse_version} >= 1330 )
 BuildRequires:  libnsl-devel
@@ -164,7 +168,7 @@ BuildRequires: libwbclient-devel
 %endif
 BuildRequires:	gcc-c++
 %if ( %{with_system_ntirpc} )
-BuildRequires:	libntirpc-devel >= 1.7.4
+BuildRequires:	libntirpc-devel >= 1.8.0
 %else
 Requires: libntirpc = @NTIRPC_VERSION_EMBED@
 %endif
@@ -215,10 +219,18 @@ Requires(postun): systemd
 BuildRequires:	initscripts
 %endif
 %if %{with man_page}
+%if ( 0%{?fedora} >= 28 || 0%{?rhel} >= 8 )
+BuildRequires: python3-sphinx
+%else
 BuildRequires: python-sphinx
+%endif
 %endif
 Requires(post): psmisc
 Requires(pre): shadow-utils
+
+%if ( 0%{?fedora} >= 30 || 0%{?rhel} >= 8 )
+Requires: nfs-ganesha-selinux = %{version}-%{release}
+%endif
 
 # Use CMake variables
 
@@ -227,12 +239,14 @@ nfs-ganesha : NFS-GANESHA is a NFS Server running in user space.
 It comes with various back-end modules (called FSALs) provided as
 shared objects to support different file systems and name-spaces.
 
+%if %{with 9P}
 %package mount-9P
 Summary: a 9p mount helper
 
 %description mount-9P
 This package contains the mount.9P script that clients can use
 to simplify mounting to NFS-GANESHA. This is a 9p mount helper.
+%endif
 
 %package vfs
 Summary: The NFS-GANESHA VFS FSAL
@@ -258,8 +272,17 @@ be used with NFS-Ganesha to support PROXY based filesystems
 Summary: The NFS-GANESHA util scripts
 %if ( 0%{?suse_version} )
 Requires:	dbus-1-python, python-gobject2 python-pyparsing
+Requires:	gpfs.nfs-ganesha = %{version}-%{release}, python
+%else
+%if ( 0%{?fedora} >= 28 || 0%{?rhel} >= 8 )
+Requires:	python3-dbus, python3-gobject, python3-pyparsing
+Requires:	gpfs.nfs-ganesha = %{version}-%{release}, python3
+BuildRequires:	python3-devel
 %else
 Requires:	dbus-python, pygobject2, pyparsing
+Requires:	gpfs.nfs-ganesha = %{version}-%{release}, python
+BuildRequires:	python-devel
+%endif
 %endif
 %if %{with gui_utils}
 %if ( 0%{?suse_version} )
@@ -269,13 +292,6 @@ Requires:	python-qt4
 BuildRequires:	PyQt4-devel
 Requires:	PyQt4
 %endif
-%endif
-%if ( 0%{?suse_version} )
-BuildRequires:	python2-devel
-Requires: nfs-ganesha = %{version}-%{release}, python
-%else
-BuildRequires:	python2-devel
-Requires: nfs-ganesha = %{version}-%{release}, python2
 %endif
 
 %description utils
@@ -407,7 +423,7 @@ be used with NFS-Ganesha to support PANFS
 %package gluster
 Summary: The NFS-GANESHA GLUSTER FSAL
 Requires:	nfs-ganesha = %{version}-%{release}
-BuildRequires:	glusterfs-api-devel >= 3.12.3
+BuildRequires:	glusterfs-api-devel >= 6.0
 BuildRequires:	libattr-devel, libacl-devel
 
 %description gluster
@@ -428,7 +444,7 @@ BuildRequires:        selinux-policy-devel
 This package contains an selinux policy for running ganesha.nfsd
 
 %post selinux
-%selinux_modules_install %{_datadir}/selinux/packages/ganesha.pp.bz2
+%selinux_modules_install %{_selinux_store_path}/packages/ganesha.pp.bz2
 
 %pre selinux
 %selinux_relabel_pre
@@ -481,6 +497,7 @@ Development headers and auxiliary files for developing with %{name}.
 
 %prep
 %setup -q -n %{name}-%{version}
+%patch1 -p1
 
 %build
 cd src && %cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo	\
@@ -504,7 +521,7 @@ cd src && %cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo	\
 	-DUSE_FSAL_VFS=ON				\
 	-DUSE_FSAL_PROXY=ON				\
 	-DUSE_DBUS=ON					\
-	-DUSE_9P=ON					\
+	-DUSE_9P=%{use_9P}				\
 	-DDISTNAME_HAS_GIT_DATA=OFF			\
 	-DUSE_MAN_PAGE=%{use_man_page}			\
 	-DRPCBIND=%{use_rpcbind}			\
@@ -514,7 +531,7 @@ cd src && %cmake . -DCMAKE_BUILD_TYPE=RelWithDebInfo	\
 	-DALLOCATOR=jemalloc
 %endif
 
-make %{?_smp_mflags} || make %{?_smp_mflags} || make
+make VERBOSE=1 %{?_smp_mflags} || make %{?_smp_mflags} || make
 
 %if ( 0%{?fedora} >= 30 || 0%{?rhel} >= 8 )
 make -C selinux -f /usr/share/selinux/devel/Makefile ganesha.pp
@@ -535,7 +552,9 @@ cd src
 install -m 644 config_samples/logrotate_ganesha	%{buildroot}%{_sysconfdir}/logrotate.d/ganesha
 install -m 644 scripts/ganeshactl/org.ganesha.nfsd.conf	%{buildroot}%{_sysconfdir}/dbus-1/system.d
 install -m 755 scripts/nfs-ganesha-config.sh	%{buildroot}%{_libexecdir}/ganesha
+%if %{with 9P}
 install -m 755 tools/mount.9P	%{buildroot}%{_sbindir}/mount.9P
+%endif
 install -m 644 config_samples/vfs.conf %{buildroot}%{_sysconfdir}/ganesha
 %if %{with rgw}
 install -m 644 config_samples/rgw.conf %{buildroot}%{_sysconfdir}/ganesha
@@ -568,10 +587,6 @@ install -m 644 config_samples/xfs.conf %{buildroot}%{_sysconfdir}/ganesha
 
 %if %{with ceph}
 install -m 644 config_samples/ceph.conf %{buildroot}%{_sysconfdir}/ganesha
-%endif
-
-%if %{with rados_recov}
-install -m 755 tools/ganesha-rados-grace       %{buildroot}%{_bindir}/ganesha-rados-grace
 %endif
 
 %if %{with rgw}
@@ -652,6 +667,7 @@ exit 0
 %files
 %license src/LICENSE.txt
 %{_bindir}/ganesha.nfsd
+%{_libdir}/libganesha_nfsd.so*
 %config %{_sysconfdir}/dbus-1/system.d/org.ganesha.nfsd.conf
 %config(noreplace) %{_sysconfdir}/sysconfig/ganesha
 %config(noreplace) %{_sysconfdir}/logrotate.d/ganesha
@@ -693,10 +709,12 @@ exit 0
 %endif
 %endif
 
+%if %{with 9P}
 %files mount-9P
 %{_sbindir}/mount.9P
 %if %{with man_page}
 %{_mandir}/*/ganesha-9p-config.8.gz
+%endif
 %endif
 
 %files vfs
@@ -822,8 +840,13 @@ exit 0
 %{python2_sitelib}/Ganesha/*
 %{python2_sitelib}/ganeshactl-*-info
 %else
+%if ( 0%{?fedora} >= 28 || 0%{?rhel} >= 8 )
+%{python3_sitelib}/Ganesha/*
+%{python3_sitelib}/ganeshactl-*-info
+%else
 %{python2_sitelib}/Ganesha/*
 %{python2_sitelib}/ganeshactl-*-info
+%endif
 %endif
 %if %{with gui_utils}
 %{_bindir}/ganesha-admin
@@ -831,8 +854,13 @@ exit 0
 %{_bindir}/manage_exports
 %{_bindir}/manage_logger
 %{_bindir}/ganeshactl
+%if %{with 9P}
 %{_bindir}/client_stats_9pOps
 %{_bindir}/export_stats_9pOps
+%else
+%exclude %{_bindir}/client_stats_9pOps
+%exclude %{_bindir}/export_stats_9pOps
+%endif
 %endif
 %{_bindir}/fake_recall
 %{_bindir}/get_clientids
@@ -845,6 +873,9 @@ exit 0
 %endif
 
 %changelog
+* Fri Jun 7 2019 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.8.0-1
+- nfs-ganesha 2.8.0 GA, 2.8.0.1
+
 * Wed Jun 5 2019 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.7.4-1
 - nfs-ganesha 2.7.4 GA
 
