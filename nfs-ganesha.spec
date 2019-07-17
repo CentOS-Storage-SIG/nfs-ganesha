@@ -118,7 +118,7 @@ Requires: openSUSE-release
 #%%global	dash_dev_version 2.6-rc5
 
 Name:		nfs-ganesha
-Version:	2.7.4
+Version:	2.7.5
 Release:	1%{?dev:%{dev}}%{?dist}
 Summary:	NFS-Ganesha is a NFS Server running in user space
 License:	LGPLv3+
@@ -847,6 +847,9 @@ exit 0
 %endif
 
 %changelog
+* Wed Jul 3 2019 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.7.5-1
+- nfs-ganesha 2.7.5 GA
+
 * Wed Jun 5 2019 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.7.4-1
 - nfs-ganesha 2.7.4 GA
 
