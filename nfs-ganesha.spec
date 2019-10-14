@@ -43,7 +43,7 @@ Requires: openSUSE-release
 %bcond_without nullfs
 %global use_fsal_null %{on_off_switch nullfs}
 
-%bcond_with mem
+%bcond_without mem
 %global use_fsal_mem %{on_off_switch mem}
 
 %bcond_without gpfs
@@ -128,7 +128,7 @@ Requires: openSUSE-release
 
 Name:		nfs-ganesha
 Version:	2.7.6
-Release:	1%{?dev:%{dev}}%{?dist}
+Release:	2%{?dev:%{dev}}%{?dist}
 Summary:	NFS-Ganesha is a NFS Server running in user space
 License:	LGPLv3+
 Url:		https://github.com/nfs-ganesha/nfs-ganesha/wiki
@@ -845,6 +845,9 @@ exit 0
 %endif
 
 %changelog
+* Tue Oct 8 2019 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.7.6-2
+- nfs-ganesha 2.7.6, w/ FSAL_MEM
+
 * Wed Jul 17 2019 Kaleb S. KEITHLEY <kkeithle at redhat.com> - 2.7.6-1
 - nfs-ganesha 2.7.6 GA
 
